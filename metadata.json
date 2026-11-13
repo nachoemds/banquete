@@ -1,0 +1,6 @@
+{
+  "name": "El Banquete — Setlist 3D de La Renga",
+  "description": "Armador interactivo de setlist de 36 canciones de La Renga en un mundo 3D con estética 2.5D oscura tipo Don't Starve, pogo, banderas, reproductor YouTube/Spotify y sistema de puntuación del Banquete.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

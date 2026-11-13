@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Pirata One', Georgia, serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #0d0a09;
+    color: #efe8d8;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  h1, h2, .font-rock {
+    font-family: var(--font-display);
+    letter-spacing: 0.03em;
+  }
+}
+
+/* Hand-illustrated Don't Starve sketch-frame utility */
+.sketch-panel {
+  background-color: #14100d;
+  border: 2px solid #4a382d;
+  box-shadow:
+    0 0 0 3px #090706,
+    inset 0 0 24px rgba(0, 0, 0, 0.75);
+}
+
+.sketch-card {
+  background-color: #1b1512;
+  border: 1.5px solid #3f3027;
+  box-shadow: 2px 3px 0px #080605;
+}
+
+/* Custom dark rock scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #120e0c;
+}
+::-webkit-scrollbar-thumb {
+  background: #3a2e28;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #dc2626;
+}
