@@ -3,6 +3,8 @@ import { LaRengaSong } from '../data/laRengaSongs';
 
 class RockAudioEngine {
   private ctx: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private timeData: Uint8Array<ArrayBuffer> | null = null;
   private isPlayingRiff = false;
   private stopTimer: number | null = null;
 
@@ -16,7 +18,35 @@ class RockAudioEngine {
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    if (!this.analyser && this.ctx) {
+      this.analyser = this.ctx.createAnalyser();
+      this.analyser.fftSize = 256;
+      this.analyser.smoothingTimeConstant = 0.65;
+      this.timeData = new Uint8Array(new ArrayBuffer(this.analyser.frequencyBinCount));
+      this.analyser.connect(this.ctx.destination);
+    }
     return this.ctx;
+  }
+
+  private getOutputNode(ctx: AudioContext): AudioNode {
+    return this.analyser || ctx.destination;
+  }
+
+  /**
+   * Returns a normalized 0..1 real-time audio energy level when a Riff or Roar is playing.
+   */
+  public getAudioPulse(): number {
+    if (!this.analyser || !this.timeData || !this.ctx || this.ctx.state !== 'running') {
+      return this.isPlayingRiff ? 0.65 : 0;
+    }
+    this.analyser.getByteTimeDomainData(this.timeData);
+    let sumSquares = 0;
+    for (let i = 0; i < this.timeData.length; i++) {
+      const centered = (this.timeData[i] - 128) / 128;
+      sumSquares += centered * centered;
+    }
+    const rms = Math.sqrt(sumSquares / this.timeData.length);
+    return Math.min(1, rms * 4.2);
   }
 
   private makeDistortionCurve(amount = 180): Float32Array<ArrayBuffer> {
@@ -52,7 +82,7 @@ class RockAudioEngine {
       const now = ctx.currentTime;
       const master = ctx.createGain();
       master.gain.setValueAtTime(0.16, now);
-      master.connect(ctx.destination);
+      master.connect(this.getOutputNode(ctx));
 
       const shaper = ctx.createWaveShaper();
       shaper.curve = this.makeDistortionCurve(song.energy === 'balada' ? 40 : 220);
@@ -156,7 +186,7 @@ class RockAudioEngine {
 
         src.connect(bp);
         bp.connect(g);
-        g.connect(ctx.destination);
+        g.connect(this.getOutputNode(ctx));
         src.start(now);
       });
 
@@ -183,7 +213,7 @@ class RockAudioEngine {
 
           osc.connect(throatFilter);
           throatFilter.connect(voiceGain);
-          voiceGain.connect(ctx.destination);
+          voiceGain.connect(this.getOutputNode(ctx));
 
           osc.start(now + tOffset);
           osc.stop(now + tOffset + 0.44);
@@ -205,7 +235,7 @@ class RockAudioEngine {
         wGain.gain.exponentialRampToValueAtTime(0.0001, now + wStart + 0.45);
 
         whistle.connect(wGain);
-        wGain.connect(ctx.destination);
+        wGain.connect(this.getOutputNode(ctx));
         whistle.start(now + wStart);
         whistle.stop(now + wStart + 0.46);
       });

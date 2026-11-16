@@ -60,13 +60,20 @@ export interface StageCutoutTextures {
   cableBoxes: THREE.CanvasTexture;
 }
 
+export function resolvePublicAssetUrl(src: string): string {
+  if (/^(https?:|data:|blob:)/.test(src)) return src;
+  const base = import.meta.env.BASE_URL || './';
+  const clean = src.replace(/^\/+/, '');
+  return `${base.endsWith('/') ? base : `${base}/`}${clean}`;
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = (err) => reject(err);
-    img.src = src;
+    img.src = resolvePublicAssetUrl(src);
   });
 }
 

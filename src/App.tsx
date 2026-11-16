@@ -40,6 +40,7 @@ import {
 import { BanqueteStage3D, CameraPreset } from './components/BanqueteStage3D';
 import { BanqueteGameModal, GameTab } from './components/BanqueteGameModal';
 import { BanqueteOnboardingModal } from './components/BanqueteOnboardingModal';
+import { VisualSetlistBuilderModal } from './components/VisualSetlistBuilderModal';
 import {
   BONUS_CULT_SONGS,
   STAGE_UNLOCKABLES,
@@ -232,9 +233,6 @@ export default function App() {
     const updated = [...setlist, song];
     setSetlist(updated);
     setActiveSong(song);
-    if (soundEnabled) {
-      rockAudio.playPowerRiff(song);
-    }
   };
 
   const handleRemoveSong = (songId: string) => {
@@ -248,6 +246,73 @@ export default function App() {
     const [item] = copy.splice(index, 1);
     copy.splice(targetIdx, 0, item);
     setSetlist(copy);
+  };
+
+  const handlePromoteToOpener = (index: number) => {
+    if (index <= 0 || index >= setlist.length) return;
+    const copy = [...setlist];
+    const [item] = copy.splice(index, 1);
+    copy.unshift(item);
+    setSetlist(copy);
+  };
+
+  const handleReorderSong = (fromIndex: number, toIndex: number) => {
+    setSetlist((prev) => {
+      if (
+        fromIndex < 0 ||
+        fromIndex >= prev.length ||
+        toIndex < 0 ||
+        toIndex >= prev.length ||
+        fromIndex === toIndex
+      ) {
+        return prev;
+      }
+      const copy = [...prev];
+      const [moved] = copy.splice(fromIndex, 1);
+      copy.splice(toIndex, 0, moved);
+      return copy;
+    });
+  };
+
+  const handleReplaceSong = (slotIndex: number, newSong: LaRengaSong) => {
+    setSetlist((prev) => {
+      if (slotIndex < 0 || slotIndex >= prev.length) return prev;
+      const copy = [...prev];
+      const existingIdx = copy.findIndex((s) => s.id === newSong.id);
+      if (existingIdx !== -1) {
+        // If the replacement song is already in the setlist at another slot, swap them!
+        const temp = copy[slotIndex];
+        copy[slotIndex] = copy[existingIdx];
+        copy[existingIdx] = temp;
+      } else {
+        // Otherwise replace the slot directly with the new song
+        copy[slotIndex] = newSong;
+      }
+      return copy;
+    });
+    setActiveSong(newSong);
+  };
+
+  const handleInsertSongAt = (insertIndex: number, newSong: LaRengaSong) => {
+    setSetlist((prev) => {
+      const copy = [...prev];
+      const existingIdx = copy.findIndex((s) => s.id === newSong.id);
+      if (existingIdx !== -1) {
+        // If song is already in the list, move it to the target gap position
+        const [moved] = copy.splice(existingIdx, 1);
+        const adjustedIdx =
+          existingIdx < insertIndex ? insertIndex - 1 : insertIndex;
+        const clampedIdx = Math.max(0, Math.min(copy.length, adjustedIdx));
+        copy.splice(clampedIdx, 0, moved);
+        return copy;
+      }
+      // Insert new song at the exact position between songs (without replacing the target song)
+      const clampedIdx = Math.max(0, Math.min(copy.length, insertIndex));
+      copy.splice(clampedIdx, 0, newSong);
+      // Keep max 36 songs if the list was already at 36
+      return copy.slice(0, 36);
+    });
+    setActiveSong(newSong);
   };
 
   const handleAutoFill36 = () => {
@@ -794,300 +859,31 @@ export default function App() {
           </div>
         </div>
 
-        {/* MODAL 1: ARMADOR DE SETLIST DE 36 CANCIONES CON TAPAS ILUSTRADAS */}
-        {activeModal === 'builder' && (
-          <div className="fixed inset-0 z-30 bg-black/80 flex items-center justify-center p-4">
-            <div className="sketch-panel rounded w-full max-w-6xl h-[88vh] flex flex-col overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-3.5 border-b border-[#3a2c24] bg-[#191310]">
-                <div>
-                  <h2 className="text-2xl font-rock text-[#f5efe2]">
-                    Armador Ilustrado del Banquete (36 Canciones)
-                  </h2>
-                  <p className="text-xs text-[#a89984]">
-                    Hacé clic en cualquier tapa de disco para filtrar sus temas y proyectar su arte en el escenario 3D.
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  {setlist.length < 36 && (
-                    <button
-                      onClick={handleAutoFill36}
-                      className="px-3 py-1.5 text-xs font-semibold sketch-card hover:bg-[#382b24] text-[#f5efe2] rounded cursor-pointer whitespace-nowrap shrink-0"
-                    >
-                      Autocompletar las {36 - setlist.length} restantes
-                    </button>
-                  )}
-                  {setlist.length > 0 && (
-                    <button
-                      onClick={() => setSetlist([])}
-                      className="px-3 py-1.5 text-xs font-medium text-[#ef4444] hover:bg-[#2a1615] border border-[#4a2320] rounded cursor-pointer whitespace-nowrap shrink-0"
-                    >
-                      Vaciar Lista
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setActiveModal('none')}
-                    className="p-1.5 text-[#a89984] hover:text-white rounded cursor-pointer"
-                    aria-label="Cerrar"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Illustrated Album Cover Strip (All 11 Studio Albums) */}
-              <div className="px-4 py-2.5 bg-[#110d0b] border-b border-[#2e231e] flex items-center gap-2.5 overflow-x-auto shrink-0">
-                <button
-                  onClick={() => setSelectedAlbum('ALL')}
-                  className={`px-3 py-2 rounded border text-xs font-semibold cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
-                    selectedAlbum === 'ALL'
-                      ? 'bg-[#b91c1c] text-white border-[#ef4444]'
-                      : 'sketch-card text-[#c5b8a5] hover:text-white'
-                  }`}
-                >
-                  Todos los Discos (11)
-                </button>
-                {LA_RENGA_ALBUMS.map((alb) => {
-                  const isSelected = selectedAlbum === alb.name;
-                  return (
-                    <button
-                      key={alb.name}
-                      onClick={() =>
-                        setSelectedAlbum(isSelected ? 'ALL' : alb.name)
-                      }
-                      className={`flex items-center gap-2 p-1.5 pr-3 rounded border transition-all cursor-pointer shrink-0 ${
-                        isSelected
-                          ? 'bg-[#2b1814] border-[#f59e0b] text-white'
-                          : 'bg-[#17120f] border-[#332720] text-[#c5b8a5] hover:border-[#6e5546]'
-                      }`}
-                    >
-                      <img
-                        src={albumCoverMap[alb.name]}
-                        alt={alb.name}
-                        referrerPolicy="no-referrer"
-                        className="w-9 h-9 rounded object-cover border border-[#090706] shrink-0"
-                      />
-                      <div className="text-left">
-                        <div className="text-xs font-semibold leading-tight whitespace-nowrap">
-                          {alb.name}
-                        </div>
-                        <div className="text-[10px] font-mono tabular-nums text-[#9c8c79]">
-                          {alb.year}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* 2-Column Workspace */}
-              <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
-                {/* Left Column: Catalog with Illustrated Covers */}
-                <div className="lg:col-span-7 border-r border-[#2e231e] flex flex-col overflow-hidden">
-                  <div className="p-3.5 border-b border-[#261d19] flex flex-wrap items-center justify-between gap-2 bg-[#16110f]">
-                    <div className="relative flex-1 min-w-[220px]">
-                      <Search className="w-4 h-4 text-[#8c7c68] absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Buscar canción o época..."
-                        className="w-full pl-9 pr-4 py-1.5 text-sm bg-[#0d0a09] border border-[#362a23] rounded text-[#f5efe2] placeholder-[#756756] focus:outline-none focus:border-[#dc2626]"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-1 bg-[#0d0a09] p-1 rounded border border-[#2c221d]">
-                      {(
-                        [
-                          { id: 'ALL', label: 'Todos' },
-                          { id: 'pogo', label: 'Pogo' },
-                          { id: 'himno', label: 'Himnos' },
-                          { id: 'rock', label: 'Rock' },
-                          { id: 'balada', label: 'Baladas' },
-                          { id: 'oculto', label: 'Culto' },
-                        ] as { id: SongEnergy | 'ALL'; label: string }[]
-                      ).map((tab) => (
-                        <button
-                          key={tab.id}
-                          onClick={() => setSelectedEnergy(tab.id)}
-                          className={`px-2 py-1 text-xs rounded cursor-pointer whitespace-nowrap shrink-0 ${
-                            selectedEnergy === tab.id
-                              ? 'bg-[#b91c1c] text-white'
-                              : 'text-[#a89984] hover:text-white'
-                          }`}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto divide-y divide-[#221a16] p-2">
-                    {filteredCatalog.map((song) => {
-                      const alreadyAdded = setlistIds.has(song.id);
-                      const isFull = setlist.length >= 36;
-                      return (
-                        <div
-                          key={song.id}
-                          className={`flex items-center justify-between gap-3 px-3 py-2 rounded transition-colors ${
-                            alreadyAdded
-                              ? 'bg-[#1c1613]/50 opacity-55'
-                              : 'hover:bg-[#1f1815]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <img
-                              src={albumCoverMap[song.album]}
-                              alt={song.album}
-                              referrerPolicy="no-referrer"
-                              className="w-11 h-11 rounded border border-[#4a382d] object-cover shrink-0"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold text-[#f5efe2] truncate">
-                                  {song.title}
-                                </span>
-                                {song.isIdealOpener && (
-                                  <span className="text-[11px] text-[#f59e0b] shrink-0">
-                                    · Ideal Apertura
-                                  </span>
-                                )}
-                                {song.isIdealCloser && (
-                                  <span className="text-[11px] text-[#ef4444] shrink-0">
-                                    · Ritual Cierre
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-xs text-[#9c8c79] flex items-center gap-1.5 mt-0.5 truncate">
-                                <span>{song.album}</span>
-                                <span aria-hidden="true">·</span>
-                                <span className="font-mono tabular-nums">{song.year}</span>
-                                <span aria-hidden="true">·</span>
-                                <span>{energyLabel[song.energy]}</span>
-                                <span aria-hidden="true">·</span>
-                                <span className="font-mono tabular-nums">{song.duration}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              onClick={() => {
-                                setActiveSong(song);
-                                rockAudio.playPowerRiff(song);
-                              }}
-                              className="px-2.5 py-1 text-xs text-[#c5b8a5] hover:text-white sketch-card rounded cursor-pointer whitespace-nowrap shrink-0"
-                            >
-                              Riff
-                            </button>
-                            <button
-                              disabled={alreadyAdded || isFull}
-                              onClick={() => handleAddSong(song)}
-                              className={`px-3 py-1 text-xs font-semibold rounded cursor-pointer whitespace-nowrap shrink-0 ${
-                                alreadyAdded || isFull
-                                  ? 'bg-[#261e1a] text-[#6e6052] cursor-not-allowed'
-                                  : 'bg-[#b91c1c] hover:bg-[#dc2626] text-white'
-                              }`}
-                            >
-                              {alreadyAdded ? 'En la lista' : '+ Sumar'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Right Column: Current 36-Song Setlist with Album Art */}
-                <div className="lg:col-span-5 flex flex-col overflow-hidden bg-[#110d0b]">
-                  <div className="p-3.5 border-b border-[#261d19] flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold text-[#f5efe2]">
-                        Tu Lista en Orden ({setlist.length} / 36)
-                      </h3>
-                      <p className="text-xs text-[#9c8c79] font-mono tabular-nums">
-                        Duración: {scoreResult.totalDurationFormatted} · Puntaje:{' '}
-                        {scoreResult.totalScore.toLocaleString('es-AR')} pts
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-                    {setlist.length === 0 ? (
-                      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-[#8c7c68]">
-                        <Disc className="w-10 h-10 mb-2 stroke-1" />
-                        <p className="text-sm font-medium text-[#d6c9b8]">
-                          Tu lista del Banquete está vacía
-                        </p>
-                        <p className="text-xs mt-1 max-w-xs">
-                          Sumá canciones desde el catálogo de la izquierda para convocar fanáticos al escenario.
-                        </p>
-                      </div>
-                    ) : (
-                      setlist.map((song, idx) => (
-                        <div
-                          key={song.id}
-                          className="flex items-center justify-between gap-2 px-2.5 py-1.5 sketch-card rounded hover:border-[#f59e0b]"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span
-                              className={`text-xs font-mono tabular-nums font-semibold px-1.5 py-0.5 rounded shrink-0 ${
-                                idx === 0
-                                  ? 'bg-[#d97706]/20 text-[#fbbf24]'
-                                  : idx === 35
-                                  ? 'bg-[#dc2626]/25 text-[#f87171]'
-                                  : 'text-[#8c7c68]'
-                              }`}
-                            >
-                              #{String(idx + 1).padStart(2, '0')}
-                            </span>
-                            <img
-                              src={albumCoverMap[song.album]}
-                              alt={song.album}
-                              referrerPolicy="no-referrer"
-                              className="w-8 h-8 rounded object-cover border border-[#090706] shrink-0"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold text-[#f5efe2] truncate">
-                                {song.title}
-                              </p>
-                              <p className="text-[11px] text-[#8c7c68] truncate">
-                                {song.album} · {song.duration}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => handleMoveSong(idx, -1)}
-                              disabled={idx === 0}
-                              className="p-1 text-[#8c7c68] hover:text-white disabled:opacity-30 cursor-pointer"
-                            >
-                              <ArrowUp className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleMoveSong(idx, 1)}
-                              disabled={idx === setlist.length - 1}
-                              className="p-1 text-[#8c7c68] hover:text-white disabled:opacity-30 cursor-pointer"
-                            >
-                              <ArrowDown className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleRemoveSong(song.id)}
-                              className="p-1 text-[#8c7c68] hover:text-[#ef4444] cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* MODAL 1: ARMADOR VISUAL DE SETLIST (BATEA DE DISCOS + TARJETAS INTERACTIVAS) */}
+        <VisualSetlistBuilderModal
+          isOpen={activeModal === 'builder'}
+          onClose={() => setActiveModal('none')}
+          setlist={setlist}
+          catalogSongs={allCatalogSongs}
+          albumCoverMap={albumCoverMap}
+          scoreResult={scoreResult}
+          selectedAlbum={selectedAlbum}
+          onSelectAlbum={setSelectedAlbum}
+          onAddSong={handleAddSong}
+          onInsertSongAt={handleInsertSongAt}
+          onReplaceSong={handleReplaceSong}
+          onReorderSong={handleReorderSong}
+          onRemoveSong={handleRemoveSong}
+          onMoveSong={handleMoveSong}
+          onPromoteToOpener={handlePromoteToOpener}
+          onAutoFill36={handleAutoFill36}
+          onClearSetlist={() => setSetlist([])}
+          onLoadPreset={handleLoadPreset}
+          onPreviewRiff={(song) => {
+            setActiveSong(song);
+            rockAudio.playPowerRiff(song);
+          }}
+        />
 
         {/* MODAL 2: GALERÍA DE LAS 11 TAPAS ILUSTRADAS + LOGO OFICIAL EN ESCENARIO */}
         {activeModal === 'albums' && (
@@ -1336,7 +1132,6 @@ export default function App() {
                           key={song.id}
                           onClick={() => {
                             setActiveSong(song);
-                            if (soundEnabled) rockAudio.playPowerRiff(song);
                           }}
                           className={`w-full text-left px-3 py-2 flex items-center justify-between gap-2 transition-colors cursor-pointer ${
                             isCurrent ? 'bg-[#b91c1c]/25 text-white' : 'hover:bg-[#191310]'

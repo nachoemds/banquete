@@ -1,23 +1,29 @@
 // src/utils/albumArtGenerator.ts
 
-export const OFFICIAL_LOGO_URL = '/assets/aistudio/images_1332e974.webp';
+const BASE_URL = import.meta.env.BASE_URL || './';
+function withBase(assetPath: string): string {
+  const clean = assetPath.replace(/^\/+/, '');
+  return `${BASE_URL.endsWith('/') ? BASE_URL : `${BASE_URL}/`}${clean}`;
+}
+
+export const OFFICIAL_LOGO_URL = withBase('/assets/aistudio/images_1332e974.webp');
 
 /**
  * Map of the 11 studio albums to their official original album cover artwork
  * extracted from the official streaming catalog and stored in /public/assets/albums/.
  */
 export const OFFICIAL_ALBUM_COVERS: Record<string, string> = {
-  'Esquivando Charcos': '/assets/albums/esquivando_charcos.jpg',
-  'A Donde Me Lleva la Vida': '/assets/albums/a_donde_me_lleva_la_vida.jpg',
-  'Despedazado por Mil Partes': '/assets/albums/despedazado_por_mil_partes.jpg',
-  'La Renga (La Estrella)': '/assets/albums/la_renga_1998.jpg',
-  'La Esquina del Infinito': '/assets/albums/la_esquina_del_infinito.jpg',
-  'Detonador de Sueños': '/assets/albums/detonador_de_suenos.jpg',
-  'Truenotierra': '/assets/albums/truenotierra.jpg',
-  'Algún Rayo': '/assets/albums/algun_rayo.jpg',
-  'Pesados Vestigios': '/assets/albums/pesados_vestigios.jpg',
-  'Alejado de la Red': '/assets/albums/alejado_de_la_red.jpg',
-  'Totalmente Poseídos': '/assets/albums/totalmente_poseidos.jpg',
+  'Esquivando Charcos': withBase('/assets/albums/esquivando_charcos.jpg'),
+  'A Donde Me Lleva la Vida': withBase('/assets/albums/a_donde_me_lleva_la_vida.jpg'),
+  'Despedazado por Mil Partes': withBase('/assets/albums/despedazado_por_mil_partes.jpg'),
+  'La Renga (La Estrella)': withBase('/assets/albums/la_renga_1998.jpg'),
+  'La Esquina del Infinito': withBase('/assets/albums/la_esquina_del_infinito.jpg'),
+  'Detonador de Sueños': withBase('/assets/albums/detonador_de_suenos.jpg'),
+  'Truenotierra': withBase('/assets/albums/truenotierra.jpg'),
+  'Algún Rayo': withBase('/assets/albums/algun_rayo.jpg'),
+  'Pesados Vestigios': withBase('/assets/albums/pesados_vestigios.jpg'),
+  'Alejado de la Red': withBase('/assets/albums/alejado_de_la_red.jpg'),
+  'Totalmente Poseídos': withBase('/assets/albums/totalmente_poseidos.jpg'),
 };
 
 /**

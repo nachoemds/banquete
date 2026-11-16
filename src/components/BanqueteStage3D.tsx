@@ -15,12 +15,14 @@ import {
   loadMoonCutoutTexture,
   loadMotorcycleCutoutTextures,
   loadCoastalEnvironmentTextures,
+  resolvePublicAssetUrl,
   BandCutoutTextures,
 } from '../utils/musicianSprites';
 
 import { StageUnlockableId } from '../data/banqueteGameData';
+import { rockAudio } from '../utils/rockAudioEngine';
 
-export const NECOCHEA_SCREEN_URL = '/assets/aistudio/image_26d06c56.png';
+export const NECOCHEA_SCREEN_URL = resolvePublicAssetUrl('/assets/aistudio/image_26d06c56.png');
 
 export type CameraPreset = 'general' | 'pogo' | 'stage' | 'entrance';
 
@@ -1670,6 +1672,52 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
 
       // Subtle wind sway on the stage backdrop telón
       laRengaBackdropMesh.rotation.z = Math.sin(elapsed * 1.4) * 0.015;
+
+      // ============================================================================
+      // SPEAKER & MONITOR BASS VIBRATION (Marshall Stacks, Floor Monitors & Line-Arrays)
+      // ============================================================================
+      const songBpm = currentSong?.tempoBpm || 134;
+      const beatFreq = (songBpm / 60) * Math.PI * 2; // radians per second matching the song's BPM
+      const liveAudioLevel = rockAudio.getAudioPulse(); // 0..1 when Riff / Agitar audio is playing
+      const energyMult =
+        (isAgitando ? 1.85 : isPogoSong ? 1.35 : 0.95) + liveAudioLevel * 1.45;
+
+      // Sharp bass cone punch (kick + snare + guitar cabinet thump + high-freq cabinet buzz)
+      const kickPulse = Math.pow(Math.max(0, Math.sin(elapsed * beatFreq)), 3);
+      const doublePulse = Math.pow(Math.max(0, Math.sin(elapsed * beatFreq * 2)), 4);
+      const cabinetBuzz = Math.sin(elapsed * 44.0) * (0.014 + liveAudioLevel * 0.028);
+
+      const marshallScaleX =
+        1.0 + (kickPulse * 0.085 + doublePulse * 0.045) * energyMult + cabinetBuzz;
+      const marshallScaleY =
+        1.0 + (kickPulse * 0.065 - doublePulse * 0.025) * energyMult - cabinetBuzz * 0.6;
+      const marshallHopY = 1.56 + kickPulse * 0.09 * energyMult;
+      const marshallShakeZ =
+        Math.sin(elapsed * beatFreq * 1.5) * 0.028 * energyMult + cabinetBuzz * 0.8;
+
+      marshallLeftMesh.scale.set(marshallScaleX, marshallScaleY, 1);
+      marshallLeftMesh.position.y = marshallHopY;
+      marshallLeftMesh.rotation.z = marshallShakeZ;
+
+      marshallRightMesh.scale.set(marshallScaleX, marshallScaleY, 1);
+      marshallRightMesh.position.y = marshallHopY;
+      marshallRightMesh.rotation.z = -marshallShakeZ;
+
+      // Floor Wedge Monitors along the front edge of the stage vibrating in phase with the bass
+      for (let m = 0; m < wedgeMonitorMeshes.length; m++) {
+        const wm = wedgeMonitorMeshes[m];
+        const mPhase = m * 0.65;
+        const mKick = Math.pow(Math.max(0, Math.sin(elapsed * beatFreq * 2 + mPhase)), 3);
+        const wmSx = 1.0 + mKick * 0.095 * energyMult + cabinetBuzz * 0.7;
+        const wmSy = 1.0 + mKick * 0.075 * energyMult - cabinetBuzz * 0.5;
+        wm.scale.set(wmSx, wmSy, 1);
+        wm.position.y = 1.56 + mKick * 0.055 * energyMult;
+        wm.rotation.z = Math.cos(elapsed * 32.0 + mPhase) * 0.022 * energyMult;
+      }
+
+      // Subtle bass thump on the front truss hanging line-array speakers
+      const trussPulse = 1.0 + kickPulse * 0.016 * energyMult;
+      trussArchFrontMesh.scale.set(trussPulse, 1.0 + kickPulse * 0.01 * energyMult, 1);
 
       // Band animation & slower, natural pose switching (~9–12s per pose)
       chizzoMesh.position.y = 1.56 + Math.abs(Math.sin(elapsed * 5.2)) * 0.12;
