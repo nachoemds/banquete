@@ -46,6 +46,8 @@ import { SITE_COPY } from './data/siteCopy';
 import {
   BONUS_CULT_SONGS,
   STAGE_UNLOCKABLES,
+  GUEST_MUSICIANS_BY_SCORE,
+  getActiveGuestForScore,
   GameProgressState,
   StageUnlockableId,
   CollectibleTicket,
@@ -58,15 +60,43 @@ import { getAlbumCoverDataUrl, OFFICIAL_LOGO_URL } from './utils/albumArtGenerat
 
 type ActiveModal = 'none' | 'builder' | 'albums' | 'player' | 'score' | 'presets' | 'game';
 
-export default function App() {
-  const [setlist, setSetlist] = useState<LaRengaSong[]>(() => {
-    const starterIds = ['ei-4', 'dp-2', 'lr-2', 'ec-1', 'dp-6', 'dp-10'];
-    return starterIds
-      .map((id) => LA_RENGA_SONGS.find((s) => s.id === id))
-      .filter((s): s is LaRengaSong => Boolean(s));
-  });
+// Pool of songs with verified standalone iTunes audio previews so the 6 random starter songs always match 100%
+const VERIFIED_STARTER_POOL_IDS = new Set([
+  'ec-2', 'ec-3', 'ec-5', 'ec-9',
+  'ad-3', 'ad-8', 'ad-11',
+  'dp-1', 'dp-2', 'dp-3', 'dp-4', 'dp-5', 'dp-6', 'dp-7', 'dp-9', 'dp-10', 'dp-11',
+  'lr-2', 'lr-9',
+  'ei-2', 'ei-3', 'ei-4', 'ei-7', 'ei-9', 'ei-10', 'ei-11',
+  'ds-1', 'ds-2', 'ds-3', 'ds-4', 'ds-5', 'ds-6', 'ds-8', 'ds-9', 'ds-10', 'ds-11',
+  'tt-1', 'tt-2', 'tt-3', 'tt-4', 'tt-5', 'tt-6', 'tt-7', 'tt-8', 'tt-9',
+  'ar-1', 'ar-2', 'ar-3', 'ar-4', 'ar-5', 'ar-7', 'ar-8',
+  'pv-1', 'pv-2', 'pv-3', 'pv-4', 'pv-5', 'pv-6', 'pv-7', 'pv-8',
+  'al-1', 'al-2', 'al-3', 'al-4', 'al-5', 'al-6', 'al-7',
+  'tp-2', 'tp-3',
+]);
 
-  const [activeSong, setActiveSong] = useState<LaRengaSong | null>(() => LA_RENGA_SONGS[0]);
+function pickRandomStarterSetlist(count = 6): LaRengaSong[] {
+  const pool = LA_RENGA_SONGS.filter((s) => VERIFIED_STARTER_POOL_IDS.has(s.id));
+  const source = pool.length >= count ? [...pool] : [...LA_RENGA_SONGS];
+  // Fisher-Yates shuffle for true randomness on every page load
+  for (let i = source.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = source[i];
+    source[i] = source[j];
+    source[j] = temp;
+  }
+  return source.slice(0, count);
+}
+
+export default function App() {
+  const [setlist, setSetlist] = useState<LaRengaSong[]>(() =>
+    pickRandomStarterSetlist(6)
+  );
+
+  // Sync activeSong initially to the exact #01 song of the random 6-song starter setlist
+  const [activeSong, setActiveSong] = useState<LaRengaSong | null>(
+    () => setlist[0] || LA_RENGA_SONGS[0]
+  );
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('general');
   const [flareActive, setFlareActive] = useState<boolean>(false);
   const [dockCollapsed, setDockCollapsed] = useState<boolean>(false);
@@ -128,10 +158,16 @@ export default function App() {
     [setlist, weights]
   );
 
+  const activeGuestTier = useMemo(
+    () => getActiveGuestForScore(scoreResult.totalScore),
+    [scoreResult.totalScore]
+  );
+
   // Automatically check and award setlist-based trophies & stage unlockables
   useEffect(() => {
     const newTrophies = new Set(gameProgress.earnedTrophyIds);
     const newUnlockedStages = new Set(gameProgress.unlockedStageIds);
+    const newEnabledStages = new Set(gameProgress.enabledStageIds);
     let changed = false;
 
     if (setlist.length === 36 && !newTrophies.has('tr_first_banquete')) {
@@ -166,13 +202,13 @@ export default function App() {
       newUnlockedStages.add('stage_fire');
       changed = true;
     }
-    // Unlock Guest Musician if score >= 8600 with 36 songs
+    // Unlock Guest Musician (starting with El Carpo at 2,000 pts) according to score points
     if (
-      setlist.length === 36 &&
-      scoreResult.totalScore >= 8600 &&
+      scoreResult.totalScore >= 2000 &&
       !newUnlockedStages.has('guest_musician')
     ) {
       newUnlockedStages.add('guest_musician');
+      newEnabledStages.add('guest_musician');
       changed = true;
     }
     // Unlock Golden Pyro if 3+ tickets collected
@@ -189,6 +225,7 @@ export default function App() {
         ...prev,
         earnedTrophyIds: Array.from(newTrophies),
         unlockedStageIds: Array.from(newUnlockedStages),
+        enabledStageIds: Array.from(newEnabledStages),
       }));
     }
   }, [
@@ -196,6 +233,7 @@ export default function App() {
     scoreResult.totalScore,
     gameProgress.earnedTrophyIds,
     gameProgress.unlockedStageIds,
+    gameProgress.enabledStageIds,
     gameProgress.tickets.length,
   ]);
 
@@ -237,6 +275,16 @@ export default function App() {
     setActiveSong(song);
   };
 
+  // Keep activeSong synced with setlist[0] if the active song is removed from the list
+  useEffect(() => {
+    if (
+      setlist.length > 0 &&
+      (!activeSong || !setlist.some((s) => s.id === activeSong.id))
+    ) {
+      setActiveSong(setlist[0]);
+    }
+  }, [setlist, activeSong]);
+
   const handleRemoveSong = (songId: string) => {
     setSetlist((prev) => prev.filter((s) => s.id !== songId));
   };
@@ -256,6 +304,7 @@ export default function App() {
     const [item] = copy.splice(index, 1);
     copy.unshift(item);
     setSetlist(copy);
+    setActiveSong(item);
   };
 
   const handleReorderSong = (fromIndex: number, toIndex: number) => {
@@ -629,6 +678,7 @@ export default function App() {
           cameraPreset={cameraPreset}
           flareActive={flareActive}
           enabledUnlockables={gameProgress.enabledStageIds}
+          activeGuestAssetUrl={activeGuestTier.assetUrl}
         />
 
         {/* Hand-Illustrated Top-Left Stage & Album Badge (Zero backdrop-filter) */}
@@ -804,7 +854,10 @@ export default function App() {
                   [
                     { id: 'stage_fire', label: 'Fuego' },
                     { id: 'stadium_lasers', label: 'Luces Huracán' },
-                    { id: 'guest_musician', label: 'Invitado' },
+                    {
+                      id: 'guest_musician',
+                      label: `Invitado (${activeGuestTier.nickname})`,
+                    },
                     { id: 'golden_pyro', label: 'Chispas' },
                   ] as { id: StageUnlockableId; label: string }[]
                 ).map((fx) => {
@@ -1049,6 +1102,70 @@ export default function App() {
                       {scoreResult.totalScore.toLocaleString('es-AR')}
                       <span className="text-sm text-[#8c7c68] font-normal"> / 10.000</span>
                     </div>
+                  </div>
+                </div>
+
+                {/* Escalera de Invitados Desbloqueables según Puntos */}
+                <div className="sketch-card rounded p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-base font-rock text-[#f5efe2]">
+                        Escalera de Invitados en el Escenario 3D según tus Puntos
+                      </h4>
+                      <p className="text-xs text-[#a89984]">
+                        A medida que tu lista suma puntos, se destraban nuevos invitados sobre las tablas (ahora activo: {activeGuestTier.name}).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!gameProgress.enabledStageIds.includes('guest_musician')) {
+                          handleToggleStageUnlockable('guest_musician');
+                        }
+                        setCameraPreset('stage');
+                        setActiveModal('none');
+                      }}
+                      className="px-3 py-1.5 text-xs font-semibold bg-[#b91c1c] hover:bg-[#dc2626] text-white rounded cursor-pointer"
+                    >
+                      Ver a {activeGuestTier.nickname} en el Escenario
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {GUEST_MUSICIANS_BY_SCORE.map((guest) => {
+                      const unlocked = scoreResult.totalScore >= guest.minScore;
+                      const isCurrent = activeGuestTier.id === guest.id;
+                      return (
+                        <div
+                          key={guest.id}
+                          className={`rounded p-3 border flex items-center gap-3 ${
+                            isCurrent
+                              ? 'bg-[#281812] border-[#f59e0b]'
+                              : unlocked
+                              ? 'bg-[#17120f] border-[#3f3027]'
+                              : 'bg-[#100c0a] border-[#241b17] opacity-60'
+                          }`}
+                        >
+                          <img
+                            src={guest.assetUrl}
+                            alt={guest.name}
+                            className="w-12 h-14 object-contain rounded bg-[#0b0807] border border-[#3a2c24] shrink-0 p-0.5"
+                          />
+                          <div className="min-w-0">
+                            <div className="text-[10px] font-mono text-[#f59e0b]">
+                              {guest.minScore.toLocaleString('es-AR')} PTS ·{' '}
+                              {unlocked ? 'DESTRABADO' : 'BLOQUEADO'}
+                            </div>
+                            <p className="text-xs font-bold text-[#f5efe2] truncate">
+                              {guest.nickname}
+                            </p>
+                            <p className="text-[10px] text-[#9c8c79] truncate">
+                              {guest.instrument}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

@@ -17,6 +17,7 @@ export const ASSET_CHIZZO_02 = '/assets/aistudio/Chizzo02_5b99260b.png';
 export const ASSET_CHIZZO_03 = '/assets/aistudio/Chizzo03_c08903f3.png';
 export const ASSET_MANU_01 = '/assets/aistudio/Manu01_c27bdfcb.png';
 export const ASSET_MANU_02 = '/assets/aistudio/Manu02_df17bb1d.png';
+export const ASSET_CARPO_01 = '/assets/aistudio/Carpo_01_619377f6.png';
 
 // Clean single-character PNG for "Pibe a caballito" + Fan, Stage, Moon & Motorcycle sheets
 export const ASSET_CABALLITO = '/assets/aistudio/caballito_1c79ac64.png';
@@ -1014,3 +1015,24 @@ export async function loadCoastalEnvironmentTextures(
   };
 }
 
+/**
+ * Loads the hand-illustrated Guest Musician cutout (currently El Carpo / Pappo: Carpo_01_619377f6.png)
+ * and removes any white background or interior gaps while keeping eyes & Gibson Les Paul crisp.
+ */
+export async function loadGuestCutoutTexture(
+  maxAnisotropy: number,
+  assetUrl: string = ASSET_CARPO_01
+): Promise<THREE.CanvasTexture> {
+  const guestImg = await loadImage(assetUrl);
+  return extractWhiteBgCutoutTexture(
+    guestImg,
+    { x0: 0.0, y0: 0.0, x1: 1.0, y1: 1.0 },
+    maxAnisotropy,
+    560,
+    680,
+    {
+      clearLowerWhiteGaps: true,
+      lowerGapYThreshold: 0.25,
+    }
+  );
+}

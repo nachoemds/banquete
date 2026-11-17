@@ -15,6 +15,8 @@ import {
   loadMoonCutoutTexture,
   loadMotorcycleCutoutTextures,
   loadCoastalEnvironmentTextures,
+  loadGuestCutoutTexture,
+  ASSET_CARPO_01,
   resolvePublicAssetUrl,
   BandCutoutTextures,
 } from '../utils/musicianSprites';
@@ -32,6 +34,7 @@ interface BanqueteStage3DProps {
   cameraPreset: CameraPreset;
   flareActive: boolean;
   enabledUnlockables?: StageUnlockableId[];
+  activeGuestAssetUrl?: string;
   onSelectSlotOrStage?: () => void;
 }
 
@@ -447,6 +450,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
   cameraPreset,
   flareActive,
   enabledUnlockables = [],
+  activeGuestAssetUrl = ASSET_CARPO_01,
 }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const songCountRef = useRef<number>(setlist.length);
@@ -454,6 +458,8 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
   const cameraPresetRef = useRef<CameraPreset>(cameraPreset);
   const flareActiveRef = useRef<boolean>(flareActive);
   const enabledUnlockablesRef = useRef<StageUnlockableId[]>(enabledUnlockables);
+  const guestMeshRef = useRef<THREE.Mesh | null>(null);
+  const maxAnisoRef = useRef<number>(1);
   const userInteractingRef = useRef<boolean>(false);
 
   useEffect(() => {
@@ -476,6 +482,21 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
   useEffect(() => {
     enabledUnlockablesRef.current = enabledUnlockables;
   }, [enabledUnlockables]);
+
+  useEffect(() => {
+    if (!guestMeshRef.current) return;
+    loadGuestCutoutTexture(maxAnisoRef.current, activeGuestAssetUrl)
+      .then((tex) => {
+        if (guestMeshRef.current) {
+          const mat = guestMeshRef.current.material as THREE.MeshStandardMaterial;
+          mat.map = tex;
+          mat.needsUpdate = true;
+        }
+      })
+      .catch(() => {
+        // Keep current texture if load fails
+      });
+  }, [activeGuestAssetUrl]);
 
   useEffect(() => {
     const container = mountRef.current;
@@ -510,6 +531,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
     container.appendChild(renderer.domElement);
 
     const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+    maxAnisoRef.current = maxAnisotropy;
 
     // Coastal Night Sky in Necochea
     const scene = new THREE.Scene();
@@ -1086,17 +1108,28 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
     stadiumLasersGroup.visible = false;
     stageGroup.add(stadiumLasersGroup);
 
-    // Reward 3: Legendary Guest Guitarist on Stage ("Invitado Leyenda en Tablas")
+    // Reward 3: Legendary Guest Guitarist on Stage ("Invitado en Tablas: El Carpo")
     const guestGroup = new THREE.Group();
     const guestTex = createLegendaryGuestTexture(maxAnisotropy);
-    const guestMesh = makeCutoutMesh(guestTex, 3.2, 4.2, 0.25);
-    guestMesh.position.set(6.15, 1.56, 1.25);
+    const guestMesh = makeCutoutMesh(guestTex, 3.45, 4.35, 0.22);
+    guestMesh.position.set(6.15, 1.56, 1.35);
+    guestMeshRef.current = guestMesh;
     guestGroup.add(guestMesh);
     const guestSpotLight = new THREE.PointLight(0xfbbf24, 14, 12, 1.3);
     guestSpotLight.position.set(6.15, 4.6, 2.4);
     guestGroup.add(guestSpotLight);
     guestGroup.visible = false;
     stageGroup.add(guestGroup);
+
+    loadGuestCutoutTexture(maxAnisotropy, activeGuestAssetUrl)
+      .then((loadedGuestTex) => {
+        const mat = guestMesh.material as THREE.MeshStandardMaterial;
+        mat.map = loadedGuestTex;
+        mat.needsUpdate = true;
+      })
+      .catch(() => {
+        // Fallback procedural texture remains if load fails
+      });
 
     // Reward 4: Golden Pyrotechnic Sparks ("Chispas Doradas del Banquete")
     const goldenPyroGroup = new THREE.Group();

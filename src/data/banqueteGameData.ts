@@ -48,6 +48,65 @@ export interface StageUnlockable {
   effectDescription: string;
 }
 
+export interface GuestMusicianTier {
+  id: string;
+  name: string;
+  nickname: string;
+  instrument: string;
+  minScore: number;
+  assetUrl: string;
+  iconicSongHint: string;
+}
+
+/**
+ * Escalera de Invitados según los Puntos del Banquete.
+ * Por ahora todos los escalones usan el asset ilustrado de El Carpo (/assets/aistudio/Carpo_01_619377f6.png)
+ * hasta que vayas subiendo los PNG de los demás invitados.
+ */
+export const GUEST_MUSICIANS_BY_SCORE: GuestMusicianTier[] = [
+  {
+    id: 'guest_carpo',
+    name: 'Norberto "Pappo" Napolitano',
+    nickname: 'El Carpo',
+    instrument: 'Guitarra Gibson Les Paul',
+    minScore: 2000,
+    assetUrl: '/assets/aistudio/Carpo_01_619377f6.png',
+    iconicSongHint: 'Hey Hey My My / Rock and Roll y Fiebre',
+  },
+  {
+    id: 'guest_sokol',
+    name: 'Alejandro "Bocha" Sokol',
+    nickname: 'El Bocha (Próx. Asset)',
+    instrument: 'Voz Invitada',
+    minScore: 5500,
+    assetUrl: '/assets/aistudio/Carpo_01_619377f6.png',
+    iconicSongHint: 'El final es en donde partí (River 2002)',
+  },
+  {
+    id: 'guest_mollo',
+    name: 'Ricardo Mollo',
+    nickname: 'Mollo (Próx. Asset)',
+    instrument: 'Guitarra Fender Stratocaster',
+    minScore: 7500,
+    assetUrl: '/assets/aistudio/Carpo_01_619377f6.png',
+    iconicSongHint: 'Balada del diablo y la muerte / El final es en donde partí',
+  },
+  {
+    id: 'guest_smilari',
+    name: 'Nacho Smilari',
+    nickname: 'Leyenda de Huracán (Próx. Asset)',
+    instrument: 'Guitarra Invitada',
+    minScore: 9000,
+    assetUrl: '/assets/aistudio/Carpo_01_619377f6.png',
+    iconicSongHint: 'Panic Show (Huracán 2017)',
+  },
+];
+
+export function getActiveGuestForScore(score: number): GuestMusicianTier {
+  const unlocked = GUEST_MUSICIANS_BY_SCORE.filter((g) => score >= g.minScore);
+  return unlocked[unlocked.length - 1] || GUEST_MUSICIANS_BY_SCORE[0];
+}
+
 export interface RivalBanquete {
   id: string;
   name: string;
@@ -167,11 +226,11 @@ export const STAGE_UNLOCKABLES: StageUnlockable[] = [
   },
   {
     id: 'guest_musician',
-    name: 'Invitado Leyenda en Tablas',
-    subtitle: 'Violero invitado ilustrado a mano zapando en el escenario 3D',
-    requirementText: 'Superar 8.600 pts en un Setlist de 36 temas o vencer a 2 Rivales en Duelo',
+    name: 'Invitado en Tablas: El Carpo (Pappo)',
+    subtitle: 'Se van destrabando nuevos músicos invitados en el escenario según tus puntos',
+    requirementText: 'Escalones de Puntos: 2.000 pts (El Carpo) · 5.500 pts · 7.500 pts · 9.000 pts',
     effectDescription:
-      'Sube al escenario un guitarrista invitado de leyenda en recorte ilustrado a mano junto al muro de amplificadores Marshall.',
+      'Sube al flanco derecho del escenario 3D a El Carpo con su Les Paul (y futuros invitados desbloqueables según el puntaje de tu Banquete).',
   },
   {
     id: 'golden_pyro',
@@ -671,8 +730,8 @@ export function loadGameProgress(): GameProgressState {
     // Ignore storage read issues
   }
   return {
-    unlockedStageIds: [],
-    enabledStageIds: [],
+    unlockedStageIds: ['guest_musician'],
+    enabledStageIds: ['guest_musician'],
     earnedTrophyIds: [],
     solvedOracleIds: [],
     defeatedRivalIds: [],

@@ -15,8 +15,19 @@ function normalizeText(str: string): string {
   return str
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
     .toLowerCase()
     .trim();
+}
+
+function isMedleyTrack(trackName: string): boolean {
+  const norm = normalizeText(trackName);
+  return (
+    norm.startsWith('popurock') ||
+    norm.startsWith('la trifulca') ||
+    norm.startsWith('la trifasica')
+  );
 }
 
 /**
@@ -34,7 +45,7 @@ export async function resolveLaRengaAudioStream(
   try {
     const query = encodeURIComponent(`La Renga ${song.title}`);
     const response = await fetch(
-      `https://itunes.apple.com/search?term=${query}&entity=song&limit=12&country=AR`
+      `https://itunes.apple.com/search?term=${query}&entity=song&limit=25&country=AR`
     );
 
     if (response.ok) {
@@ -54,21 +65,41 @@ export async function resolveLaRengaAudioStream(
           normalizeText(r.artistName || '').includes('la renga')
       );
 
-      // Prefer exact or substring title match
-      const bestMatch =
+      // 1. Prefer standalone track whose title starts with or equals cleanTitle (excluding medleys like Popurock)
+      const exactStandaloneMatch = laRengaMatches.find((r) => {
+        const normTrack = normalizeText(r.trackName || '');
+        return (
+          !isMedleyTrack(r.trackName || '') &&
+          (normTrack === cleanTitle || normTrack.startsWith(cleanTitle))
+        );
+      });
+
+      // 2. Next, prefer any standalone track containing cleanTitle (excluding medleys)
+      const substringStandaloneMatch = laRengaMatches.find((r) => {
+        const normTrack = normalizeText(r.trackName || '');
+        return !isMedleyTrack(r.trackName || '') && normTrack.includes(cleanTitle);
+      });
+
+      // 3. Fallback to medley only if the song appears inside a medley or fallback to first La Renga match
+      const medleyOrFallbackMatch =
         laRengaMatches.find((r) =>
           normalizeText(r.trackName || '').includes(cleanTitle)
-        ) ||
-        laRengaMatches[0] ||
-        results.find((r) => Boolean(r.previewUrl));
+        ) || laRengaMatches[0];
+
+      const bestMatch =
+        exactStandaloneMatch || substringStandaloneMatch || medleyOrFallbackMatch;
 
       if (bestMatch && bestMatch.previewUrl) {
+        const matchedName = bestMatch.trackName || song.title;
+        const isExact = Boolean(exactStandaloneMatch || substringStandaloneMatch);
         const resolved: ResolvedTrackStream = {
           previewUrl: bestMatch.previewUrl,
-          trackName: bestMatch.trackName || song.title,
+          trackName: matchedName,
           collectionName: bestMatch.collectionName || song.album,
           trackViewUrl: bestMatch.trackViewUrl || null,
-          sourceLabel: 'Stream Oficial Audio Real (AAC 256kbps)',
+          sourceLabel: isExact
+            ? `Audio Oficial: ${matchedName}`
+            : `Audio en Vivo: ${matchedName}`,
         };
         streamCache.set(song.id, resolved);
         return resolved;
@@ -83,7 +114,7 @@ export async function resolveLaRengaAudioStream(
     const fallbackResponse = await fetch(
       `https://itunes.apple.com/search?term=${encodeURIComponent(
         'La Renga'
-      )}&entity=song&limit=25&country=AR`
+      )}&entity=song&limit=35&country=AR`
     );
     if (fallbackResponse.ok) {
       const fallbackData = await fallbackResponse.json();
@@ -98,7 +129,8 @@ export async function resolveLaRengaAudioStream(
       const valid = list.filter(
         (r) =>
           r.previewUrl &&
-          normalizeText(r.artistName || '').includes('la renga')
+          normalizeText(r.artistName || '').includes('la renga') &&
+          !isMedleyTrack(r.trackName || '')
       );
       if (valid.length > 0) {
         const hash = song.id
@@ -110,7 +142,7 @@ export async function resolveLaRengaAudioStream(
           trackName: pick.trackName || song.title,
           collectionName: pick.collectionName || song.album,
           trackViewUrl: pick.trackViewUrl || null,
-          sourceLabel: `Stream Audio Real La Renga (${pick.trackName})`,
+          sourceLabel: `Audio La Renga: ${pick.trackName}`,
         };
         streamCache.set(song.id, resolved);
         return resolved;
@@ -125,7 +157,7 @@ export async function resolveLaRengaAudioStream(
     trackName: song.title,
     collectionName: song.album,
     trackViewUrl: null,
-    sourceLabel: 'Modo YouTube / Sintetizador',
+    sourceLabel: 'Preview no disponible en iTunes',
   };
   return emptyResult;
 }
