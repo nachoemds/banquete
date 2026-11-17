@@ -152,7 +152,12 @@ export interface RengaTrophy {
   conditionText: string;
 }
 
+export const NECOCHEA_TICKETS_OFFICIAL_URL =
+  'https://entradas.arteinfernal.com/event/la-renga-en-necochea-3012027';
+
 export interface GameProgressState {
+  playerAlias: string;
+  banqueteTitle: string;
   unlockedStageIds: StageUnlockableId[];
   enabledStageIds: StageUnlockableId[];
   earnedTrophyIds: string[];
@@ -714,6 +719,14 @@ export function loadGameProgress(): GameProgressState {
     if (raw) {
       const parsed = JSON.parse(raw) as GameProgressState;
       return {
+        playerAlias:
+          typeof parsed.playerAlias === 'string' && parsed.playerAlias.trim()
+            ? parsed.playerAlias.trim()
+            : 'Renguero',
+        banqueteTitle:
+          typeof parsed.banqueteTitle === 'string' && parsed.banqueteTitle.trim()
+            ? parsed.banqueteTitle.trim()
+            : 'Mi Banquete en Necochea',
         unlockedStageIds: Array.isArray(parsed.unlockedStageIds) ? parsed.unlockedStageIds : [],
         enabledStageIds: Array.isArray(parsed.enabledStageIds) ? parsed.enabledStageIds : [],
         earnedTrophyIds: Array.isArray(parsed.earnedTrophyIds) ? parsed.earnedTrophyIds : [],
@@ -730,6 +743,8 @@ export function loadGameProgress(): GameProgressState {
     // Ignore storage read issues
   }
   return {
+    playerAlias: 'Renguero',
+    banqueteTitle: 'Mi Banquete en Necochea',
     unlockedStageIds: ['guest_musician'],
     enabledStageIds: ['guest_musician'],
     earnedTrophyIds: [],

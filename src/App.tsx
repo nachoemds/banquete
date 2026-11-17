@@ -24,6 +24,8 @@ import {
   Eye,
   Swords,
   Ticket,
+  Share2,
+  User,
 } from 'lucide-react';
 import {
   LA_RENGA_SONGS,
@@ -42,12 +44,14 @@ import { BanqueteGameModal, GameTab } from './components/BanqueteGameModal';
 import { BanqueteOnboardingModal } from './components/BanqueteOnboardingModal';
 import { VisualSetlistBuilderModal } from './components/VisualSetlistBuilderModal';
 import { BanqueteInAppPlayer } from './components/BanqueteInAppPlayer';
+import { BanqueteShareModal } from './components/BanqueteShareModal';
 import { SITE_COPY } from './data/siteCopy';
 import {
   BONUS_CULT_SONGS,
   STAGE_UNLOCKABLES,
   GUEST_MUSICIANS_BY_SCORE,
   getActiveGuestForScore,
+  NECOCHEA_TICKETS_OFFICIAL_URL,
   GameProgressState,
   StageUnlockableId,
   CollectibleTicket,
@@ -55,10 +59,24 @@ import {
   loadGameProgress,
   saveGameProgress,
 } from './data/banqueteGameData';
+import {
+  fetchCommunityBanquetes,
+  publishCommunityBanquete,
+  decodeSharedBanqueteFromUrl,
+  CommunityBanqueteRecord,
+  SharedBanquetePayload,
+} from './utils/supabaseClient';
 import { rockAudio } from './utils/rockAudioEngine';
-import { getAlbumCoverDataUrl, OFFICIAL_LOGO_URL } from './utils/albumArtGenerator';
+import { getAlbumCoverDataUrl } from './utils/albumArtGenerator';
 
-type ActiveModal = 'none' | 'builder' | 'albums' | 'player' | 'score' | 'presets' | 'game';
+type ActiveModal =
+  | 'none'
+  | 'builder'
+  | 'player'
+  | 'score'
+  | 'presets'
+  | 'game'
+  | 'share';
 
 // Pool of songs with verified standalone iTunes audio previews so the 6 random starter songs always match 100%
 const VERIFIED_STARTER_POOL_IDS = new Set([
@@ -131,10 +149,56 @@ export default function App() {
     loadGameProgress()
   );
   const [gameInitialTab, setGameInitialTab] = useState<GameTab>('oraculo');
+  const [gameInitialRivalId, setGameInitialRivalId] = useState<string | null>(null);
+  const [communityBanquetes, setCommunityBanquetes] = useState<
+    CommunityBanqueteRecord[]
+  >([]);
+  const [sharedFriendBanquete, setSharedFriendBanquete] =
+    useState<SharedBanquetePayload | null>(() => decodeSharedBanqueteFromUrl());
 
   useEffect(() => {
     saveGameProgress(gameProgress);
   }, [gameProgress]);
+
+  useEffect(() => {
+    fetchCommunityBanquetes(30).then((records) => {
+      if (sharedFriendBanquete) {
+        const friendRec: CommunityBanqueteRecord = {
+          id: 'shared-friend',
+          banqueteName: sharedFriendBanquete.title,
+          author: sharedFriendBanquete.author,
+          totalScore: sharedFriendBanquete.score,
+          openerTitle:
+            LA_RENGA_SONGS.find((s) => s.id === sharedFriendBanquete.songIds[0])
+              ?.title || 'Apertura',
+          closerTitle:
+            LA_RENGA_SONGS.find(
+              (s) =>
+                s.id ===
+                sharedFriendBanquete.songIds[
+                  sharedFriendBanquete.songIds.length - 1
+                ]
+            )?.title || 'Cierre',
+          albumsCount: 8,
+          badgesCount: 4,
+          dateLabel: 'Invitación Amigo',
+          isPlayer: false,
+          songIds: sharedFriendBanquete.songIds,
+        };
+        setCommunityBanquetes([friendRec, ...records]);
+      } else {
+        setCommunityBanquetes(records);
+      }
+    });
+  }, [sharedFriendBanquete]);
+
+  const handleSaveProfile = (alias: string, title: string) => {
+    setGameProgress((prev) => ({
+      ...prev,
+      playerAlias: alias.trim() || 'Renguero',
+      banqueteTitle: title.trim() || 'Mi Banquete en Necochea',
+    }));
+  };
 
   // Catalog includes the 3 bonus cult songs once golden_pyro is unlocked
   const allCatalogSongs = useMemo(() => {
@@ -513,6 +577,27 @@ export default function App() {
     });
   };
 
+  const handlePublishToGlobalRanking = async (
+    banqueteName: string,
+    authorName: string
+  ): Promise<{ savedToSupabase: boolean }> => {
+    const uniqueAlbums = new Set(setlist.map((s) => s.album)).size;
+    const res = await publishCommunityBanquete({
+      banqueteName,
+      authorName,
+      totalScore: scoreResult.totalScore,
+      rankTitle: scoreResult.rankTitle,
+      openerTitle: setlist[0]?.title || 'Sin Apertura',
+      closerTitle: setlist[setlist.length - 1]?.title || 'Sin Cierre',
+      albumsCount: uniqueAlbums,
+      badgesCount: scoreResult.badges.length,
+      songIds: setlist.map((s) => s.id),
+    });
+    const refreshed = await fetchCommunityBanquetes(30);
+    setCommunityBanquetes(refreshed);
+    return { savedToSupabase: res.savedToSupabase };
+  };
+
   const handleRegisterLeaderboardBanquete = (
     banqueteName: string,
     authorName: string
@@ -557,11 +642,15 @@ export default function App() {
       }
       return {
         ...prev,
+        playerAlias: authorName.trim() || prev.playerAlias,
+        banqueteTitle: banqueteName.trim() || prev.banqueteTitle,
         leaderboard: mergedBoard,
         tickets: nextTickets,
         earnedTrophyIds: Array.from(trophies),
       };
     });
+
+    handlePublishToGlobalRanking(banqueteName, authorName);
 
     return newTicket;
   };
@@ -639,14 +728,6 @@ export default function App() {
             {SITE_COPY.header.navTicketsAndRanking} ({gameProgress.tickets.length})
           </button>
           <button
-            onClick={() => setActiveModal(activeModal === 'albums' ? 'none' : 'albums')}
-            className={`hover:text-[#f5efe2] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-              activeModal === 'albums' ? 'text-[#ef4444] underline underline-offset-8' : ''
-            }`}
-          >
-            {SITE_COPY.header.navAlbums}
-          </button>
-          <button
             onClick={() => setActiveModal(activeModal === 'player' ? 'none' : 'player')}
             className={`hover:text-[#f5efe2] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               activeModal === 'player' ? 'text-[#ef4444] underline underline-offset-8' : ''
@@ -656,8 +737,27 @@ export default function App() {
           </button>
         </nav>
 
-        {/* Zone 3: 1 primary action */}
-        <div className="flex items-center shrink-0">
+        {/* Zone 3: Player Profile + Share Button + Primary Action */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveModal('share')}
+            title="Editar tu Apodo Renguero o compartir tu Banquete"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#1c1512] hover:bg-[#2a201b] text-[#f59e0b] border border-[#4a382d] rounded cursor-pointer whitespace-nowrap"
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>{gameProgress.playerAlias}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveModal('share')}
+            className="px-3.5 py-2 text-xs font-semibold bg-[#271b15] hover:bg-[#3a281f] text-[#f5efe2] border border-[#f59e0b]/50 rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+          >
+            <Share2 className="w-3.5 h-3.5 text-[#f59e0b]" />
+            <span>Compartir / Invitar</span>
+          </button>
+
           <button
             onClick={() => {
               setGameInitialTab('duelo');
@@ -680,6 +780,53 @@ export default function App() {
           enabledUnlockables={gameProgress.enabledStageIds}
           activeGuestAssetUrl={activeGuestTier.assetUrl}
         />
+
+        {/* Incoming Friend Shared Setlist / Challenge Banner (?banquete=...) */}
+        {sharedFriendBanquete && (
+          <div className="absolute top-24 left-6 z-20 max-w-md sketch-panel p-3.5 rounded border-2 border-[#f59e0b] space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-mono font-bold text-[#f59e0b]">
+                🔥 DESAFÍO RECIBIDO DE UN AMIGO
+              </span>
+              <button
+                type="button"
+                onClick={() => setSharedFriendBanquete(null)}
+                className="text-xs text-[#a89984] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-[#f5efe2]">
+              <strong className="text-[#fbbf24]">{sharedFriendBanquete.author}</strong> te invitó con su Banquete{' '}
+              <strong>"{sharedFriendBanquete.title}"</strong> ({sharedFriendBanquete.score.toLocaleString('es-AR')} pts ·{' '}
+              {sharedFriendBanquete.songIds.length} temas).
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  handleLoadPreset(sharedFriendBanquete.songIds);
+                  setSharedFriendBanquete(null);
+                }}
+                className="px-3 py-1.5 text-xs font-bold bg-[#291811] hover:bg-[#3b2318] text-[#fbbf24] border border-[#f59e0b] rounded cursor-pointer"
+              >
+                Cargar y Escuchar su Lista
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setGameInitialTab('duelo');
+                  setGameInitialRivalId('user-shared-friend');
+                  setActiveModal('game');
+                }}
+                className="px-3 py-1.5 text-xs font-bold bg-[#b91c1c] hover:bg-[#dc2626] text-white rounded cursor-pointer flex items-center gap-1"
+              >
+                <Swords className="w-3.5 h-3.5" />
+                <span>Batallar vs. {sharedFriendBanquete.author}</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Hand-Illustrated Top-Left Stage & Album Badge (Zero backdrop-filter) */}
         <div className="absolute top-4 left-6 z-10 max-w-md sketch-panel px-4 py-3 rounded flex items-center gap-3.5">
@@ -704,9 +851,9 @@ export default function App() {
             <p className="mt-0.5 text-base font-rock tracking-wide text-[#f5efe2] truncate">
               {scoreResult.rankTitle}
             </p>
-            <div className="mt-1 flex items-center gap-2">
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
               {activeSong && (
-                <p className="text-xs text-[#f59e0b] truncate">
+                <p className="text-xs text-[#f59e0b] truncate max-w-[140px]">
                   {activeSong.title}
                 </p>
               )}
@@ -716,6 +863,16 @@ export default function App() {
               >
                 {SITE_COPY.stageBadge.howToPlayButton}
               </button>
+              <a
+                href={NECOCHEA_TICKETS_OFFICIAL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Sacar Entradas Oficiales para La Renga en Necochea (Arte Infernal)"
+                className="px-2 py-0.5 text-[11px] font-bold bg-[#b91c1c] hover:bg-[#dc2626] text-white border border-[#f59e0b]/50 rounded flex items-center gap-1 whitespace-nowrap shrink-0"
+              >
+                <Ticket className="w-3 h-3" />
+                <span>Entradas Necochea ↗</span>
+              </a>
             </div>
           </div>
         </div>
@@ -926,113 +1083,6 @@ export default function App() {
           onClearSetlist={() => setSetlist([])}
           onLoadPreset={handleLoadPreset}
         />
-
-        {/* MODAL 2: GALERÍA DE LAS 11 TAPAS ILUSTRADAS + LOGO OFICIAL EN ESCENARIO */}
-        {activeModal === 'albums' && (
-          <div className="fixed inset-0 z-30 bg-black/80 flex items-center justify-center p-4">
-            <div className="sketch-panel rounded w-full max-w-6xl max-h-[88vh] flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[#3a2c24] bg-[#191310]">
-                <div>
-                  <h2 className="text-2xl font-rock text-[#f5efe2]">
-                    Tapas Originales de los Discos (1991–2024) & Logo en Tablas
-                  </h2>
-                  <p className="text-xs text-[#a89984]">
-                    Artes de tapa originales de la discografía oficial de La Renga. Tocá cualquier disco para ver sus temas o proyectarlo en el escenario 3D.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setActiveModal('none')}
-                  className="p-1.5 text-[#a89984] hover:text-white rounded cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-6 overflow-y-auto space-y-6">
-                {/* Featured Card: Official Uploaded Logo on Stage & Drum Kit */}
-                <div className="sketch-card rounded p-4 flex flex-col md:flex-row items-center justify-between gap-5 border-[#f59e0b]/60">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={OFFICIAL_LOGO_URL}
-                      alt="Logo clásico de La Renga en escenario y batería"
-                      referrerPolicy="no-referrer"
-                      className="w-24 h-24 rounded border-2 border-[#f59e0b] object-cover shrink-0"
-                    />
-                    <div>
-                      <div className="text-xs font-mono text-[#f59e0b]">
-                        ARTE INSTALADO EN EL ESCENARIO 3D Y EN LA BATERÍA DE TANQUE
-                      </div>
-                      <h3 className="text-xl font-rock text-[#f5efe2] mt-0.5">
-                        Logo Clásico de La Renga (Telón Central + Doble Bombo)
-                      </h3>
-                      <p className="text-xs text-[#c5b8a5] mt-1 max-w-2xl">
-                        El emblema ilustrado ya está montado en el gran telón de fondo detrás de Chizzo, Tete y Tanque, en la cenefa superior de luces y en los dos parches frontales de la batería doble bombo.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setCameraPreset('stage');
-                      setActiveModal('none');
-                    }}
-                    className="px-4 py-2.5 text-xs font-semibold bg-[#b91c1c] hover:bg-[#dc2626] text-white rounded flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
-                  >
-                    <Eye className="w-4 h-4" />
-                    <span>Enfocar Escenario y Batería 3D</span>
-                  </button>
-                </div>
-
-                {/* Grid of All 11 Hand-Illustrated Album Covers */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {LA_RENGA_ALBUMS.map((alb) => {
-                    const albumSongs = LA_RENGA_SONGS.filter((s) => s.album === alb.name);
-                    const inSetlistCount = setlist.filter((s) => s.album === alb.name).length;
-                    return (
-                      <div
-                        key={alb.name}
-                        className="sketch-card rounded p-3 flex flex-col justify-between gap-3 hover:border-[#f59e0b] transition-colors"
-                      >
-                        <div>
-                          <div className="aspect-square w-full rounded overflow-hidden border border-[#090706] bg-[#0d0a09]">
-                            <img
-                              src={albumCoverMap[alb.name]}
-                              alt={`Tapa de ${alb.name}`}
-                              referrerPolicy="no-referrer"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="mt-2.5 flex items-center justify-between gap-2 text-xs text-[#a89984] font-mono tabular-nums">
-                            <span>{alb.year}</span>
-                            <span>·</span>
-                            <span>{albumSongs.length} temas</span>
-                            <span>·</span>
-                            <span className="text-[#f59e0b]">{inSetlistCount} en lista</span>
-                          </div>
-                          <h4 className="text-base font-rock text-[#f5efe2] mt-0.5 truncate">
-                            {alb.name}
-                          </h4>
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            setSelectedAlbum(alb.name);
-                            if (albumSongs[0]) {
-                              setActiveSong(albumSongs[0]);
-                            }
-                            setActiveModal('builder');
-                          }}
-                          className="w-full py-1.5 text-xs font-semibold bg-[#281f1a] hover:bg-[#b91c1c] text-[#f5efe2] rounded border border-[#4a382d] transition-colors cursor-pointer whitespace-nowrap"
-                        >
-                          Elegir Temas de este Disco
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* REPRODUCTOR IN-APP PERSISTENTE (MINI-PLAYER FLOTANTE 3D + MODAL COMPLETO) */}
         <BanqueteInAppPlayer
@@ -1310,16 +1360,21 @@ export default function App() {
 
         {/* MODAL 6: MODO JUEGO (ORÁCULO DE SHOWS REALES, DUELO DE SETLISTS, ENTRADAS, EFECTOS 3D & RANKING) */}
         <BanqueteGameModal
-          key={gameInitialTab}
+          key={`${gameInitialTab}-${gameInitialRivalId || 'default'}`}
           isOpen={activeModal === 'game'}
           initialTab={gameInitialTab}
-          onClose={() => setActiveModal('none')}
+          initialRivalId={gameInitialRivalId}
+          onClose={() => {
+            setGameInitialRivalId(null);
+            setActiveModal('none');
+          }}
           setlist={setlist}
           catalogSongs={allCatalogSongs}
           playerScore={scoreResult}
           weights={weights}
           albumCoverMap={albumCoverMap}
           gameProgress={gameProgress}
+          communityBanquetes={communityBanquetes}
           onToggleStageUnlockable={handleToggleStageUnlockable}
           onRecordOracleAttempt={handleRecordOracleAttempt}
           onRecordDuelResult={handleRecordDuelResult}
@@ -1332,6 +1387,9 @@ export default function App() {
         <BanqueteOnboardingModal
           isOpen={onboardingOpen}
           setlistCount={setlist.length}
+          playerAlias={gameProgress.playerAlias}
+          banqueteTitle={gameProgress.banqueteTitle}
+          onSaveProfile={handleSaveProfile}
           onClose={handleCloseOnboarding}
           onOpenBuilder={() => setActiveModal('builder')}
           onOpenOracle={() => {
@@ -1342,6 +1400,19 @@ export default function App() {
             handleAutoFill36();
             handleCloseOnboarding();
           }}
+        />
+
+        {/* MODAL 8: COMPARTIR BANQUETE, INVITAR AMIGOS & GENERAR FLYER PNG */}
+        <BanqueteShareModal
+          isOpen={activeModal === 'share'}
+          onClose={() => setActiveModal('none')}
+          setlist={setlist}
+          scoreResult={scoreResult}
+          playerAlias={gameProgress.playerAlias}
+          banqueteTitle={gameProgress.banqueteTitle}
+          activeGuestTier={activeGuestTier}
+          onSaveProfile={handleSaveProfile}
+          onPublishToGlobalRanking={handlePublishToGlobalRanking}
         />
       </main>
     </div>

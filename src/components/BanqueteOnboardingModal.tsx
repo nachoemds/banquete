@@ -12,6 +12,7 @@ import {
   Disc,
   Play,
   Compass,
+  User,
   X,
 } from 'lucide-react';
 
@@ -20,6 +21,9 @@ import { SITE_COPY } from '../data/siteCopy';
 interface BanqueteOnboardingModalProps {
   isOpen: boolean;
   setlistCount: number;
+  playerAlias: string;
+  banqueteTitle: string;
+  onSaveProfile: (alias: string, title: string) => void;
   onClose: () => void;
   onOpenBuilder: () => void;
   onOpenOracle: () => void;
@@ -31,12 +35,24 @@ const STEPS = SITE_COPY.onboarding.steps;
 export const BanqueteOnboardingModal: React.FC<BanqueteOnboardingModalProps> = ({
   isOpen,
   setlistCount,
+  playerAlias,
+  banqueteTitle,
+  onSaveProfile,
   onClose,
   onOpenBuilder,
   onOpenOracle,
   onAutoFillDemo,
 }) => {
   const [stepIdx, setStepIdx] = useState<number>(0);
+  const [aliasInput, setAliasInput] = useState<string>(playerAlias);
+  const [titleInput, setTitleInput] = useState<string>(banqueteTitle);
+
+  const commitProfileAndRun = (cb: () => void) => {
+    const cleanAlias = aliasInput.trim() || 'Renguero';
+    const cleanTitle = titleInput.trim() || 'Mi Banquete en Necochea';
+    onSaveProfile(cleanAlias, cleanTitle);
+    cb();
+  };
 
   if (!isOpen) return null;
 
@@ -355,6 +371,52 @@ export const BanqueteOnboardingModal: React.FC<BanqueteOnboardingModalProps> = (
               </div>
             </div>
           )}
+
+          {/* Persistent Player Profile Input (Saved in Browser Cache) */}
+          <div className="mt-5 p-4 rounded border-2 border-[#f59e0b]/50 bg-[#1b130f] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+            <div className="flex items-start gap-2.5">
+              <User className="w-5 h-5 text-[#f59e0b] shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-bold text-[#f5efe2]">
+                  Tu Nombre o Apodo Renguero (Se guarda en tu navegador)
+                </h4>
+                <p className="text-xs text-[#a89984]">
+                  Queda grabado en caché junto con tus entradas, recompensas e invitados destrabados.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+              <input
+                type="text"
+                value={aliasInput}
+                onChange={(e) => {
+                  setAliasInput(e.target.value);
+                  onSaveProfile(
+                    e.target.value.trim() || 'Renguero',
+                    titleInput.trim() || 'Mi Banquete en Necochea'
+                  );
+                }}
+                placeholder="Tu apodo (ej. Nacho_73)"
+                maxLength={40}
+                className="px-3 py-1.5 text-xs bg-[#0d0a09] border border-[#4a382d] rounded text-[#f5efe2] focus:outline-none focus:border-[#f59e0b] w-full sm:w-44"
+              />
+              <input
+                type="text"
+                value={titleInput}
+                onChange={(e) => {
+                  setTitleInput(e.target.value);
+                  onSaveProfile(
+                    aliasInput.trim() || 'Renguero',
+                    e.target.value.trim() || 'Mi Banquete en Necochea'
+                  );
+                }}
+                placeholder="Nombre de tu Banquete"
+                maxLength={60}
+                className="px-3 py-1.5 text-xs bg-[#0d0a09] border border-[#4a382d] rounded text-[#f5efe2] focus:outline-none focus:border-[#f59e0b] w-full sm:w-52"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Footer Navigation & Primary CTA */}
@@ -382,21 +444,23 @@ export const BanqueteOnboardingModal: React.FC<BanqueteOnboardingModalProps> = (
 
           <div className="flex items-center gap-2.5">
             <button
-              onClick={() => {
-                onClose();
-                onOpenBuilder();
-              }}
+              onClick={() =>
+                commitProfileAndRun(() => {
+                  onClose();
+                  onOpenBuilder();
+                })
+              }
               className="px-4 py-2 text-xs font-semibold bg-[#b91c1c] hover:bg-[#dc2626] text-white rounded border border-[#f59e0b]/40 flex items-center gap-1.5 cursor-pointer"
             >
               <Play className="w-3.5 h-3.5" />
-              <span>Empezar a Armar mi Setlist (36 Temas)</span>
+              <span>Guardar Apodo y Armar mi Setlist</span>
             </button>
 
             <button
-              onClick={onClose}
+              onClick={() => commitProfileAndRun(onClose)}
               className="px-3.5 py-2 text-xs font-medium sketch-card hover:bg-[#2a201b] text-[#f5efe2] rounded cursor-pointer"
             >
-              Ver la Playa 3D
+              Entrar a la Playa 3D
             </button>
           </div>
         </div>

@@ -30,7 +30,9 @@ import {
   MilestoneKey,
   StageUnlockableId,
   CollectibleTicket,
+  RivalBanquete,
 } from '../data/banqueteGameData';
+import { CommunityBanqueteRecord } from '../utils/supabaseClient';
 import { rockAudio } from '../utils/rockAudioEngine';
 
 export type GameTab = 'oraculo' | 'duelo' | 'vitrina';
@@ -38,6 +40,7 @@ export type GameTab = 'oraculo' | 'duelo' | 'vitrina';
 interface BanqueteGameModalProps {
   isOpen: boolean;
   initialTab?: GameTab;
+  initialRivalId?: string | null;
   onClose: () => void;
   setlist: LaRengaSong[];
   catalogSongs: LaRengaSong[];
@@ -45,6 +48,7 @@ interface BanqueteGameModalProps {
   weights: ScoringWeights;
   albumCoverMap: Record<string, string>;
   gameProgress: GameProgressState;
+  communityBanquetes: CommunityBanqueteRecord[];
   onToggleStageUnlockable: (id: StageUnlockableId) => void;
   onRecordOracleAttempt: (
     challengeId: string,
@@ -69,6 +73,7 @@ interface BanqueteGameModalProps {
 export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
   isOpen,
   initialTab = 'oraculo',
+  initialRivalId = null,
   onClose,
   setlist,
   catalogSongs,
@@ -76,6 +81,7 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
   weights,
   albumCoverMap,
   gameProgress,
+  communityBanquetes,
   onToggleStageUnlockable,
   onRecordOracleAttempt,
   onRecordDuelResult,
@@ -84,6 +90,16 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
   onFocusStage3D,
 }) => {
   const [activeTab, setActiveTab] = useState<GameTab>(initialTab);
+
+  // Sync tab and rival when opened externally (e.g., from a friend's shared link)
+  React.useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+      if (initialRivalId) {
+        setSelectedRivalId(initialRivalId);
+      }
+    }
+  }, [isOpen, initialTab, initialRivalId]);
 
   // Oracle State
   const [selectedChallengeId, setSelectedChallengeId] = useState<string>(
@@ -94,14 +110,23 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
   const [revealedChallenges, setRevealedChallenges] = useState<Record<string, boolean>>({});
 
   // Duel State
-  const [selectedRivalId, setSelectedRivalId] = useState<string>(RIVAL_BANQUETES[0].id);
+  const [selectedRivalId, setSelectedRivalId] = useState<string>(
+    initialRivalId || RIVAL_BANQUETES[0].id
+  );
   const [duelExecutedRivalId, setDuelExecutedRivalId] = useState<string | null>(null);
 
-  // Vitrina & Ticket Generator State
+  // Vitrina & Ticket Generator State (Initialized from cached player profile)
   const [customBanqueteName, setCustomBanqueteName] = useState<string>(
-    'Banquete en la Arena de Necochea'
+    gameProgress.banqueteTitle || 'Mi Banquete en Necochea'
   );
-  const [customAuthorName, setCustomAuthorName] = useState<string>('Peregrino de la Ruta');
+  const [customAuthorName, setCustomAuthorName] = useState<string>(
+    gameProgress.playerAlias || 'Renguero'
+  );
+  React.useEffect(() => {
+    setCustomBanqueteName(gameProgress.banqueteTitle || 'Mi Banquete en Necochea');
+    setCustomAuthorName(gameProgress.playerAlias || 'Renguero');
+  }, [gameProgress.banqueteTitle, gameProgress.playerAlias]);
+
   const [highlightedTicket, setHighlightedTicket] = useState<CollectibleTicket | null>(
     () => gameProgress.tickets[0] || null
   );
@@ -224,11 +249,30 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
     }
   };
 
+  // Convert Community User playlists from Supabase into playable Duel Rivals
+  const communityRivals = useMemo<RivalBanquete[]>(() => {
+    return communityBanquetes
+      .filter((c) => Array.isArray(c.songIds) && c.songIds.length > 0)
+      .map((c) => ({
+        id: `user-${c.id}`,
+        name: c.author,
+        archetype: `Usuario · "${c.banqueteName}"`,
+        difficulty: c.totalScore >= 9000 ? 'Leyenda' : c.totalScore >= 8000 ? 'Histórico' : 'Picante',
+        challengeQuote: `Setlist real de la comunidad (${c.songIds.length} temas · Abre con "${c.openerTitle}").`,
+        songIds: c.songIds,
+        rewardBadgeId: 'duel_user',
+      }));
+  }, [communityBanquetes]);
+
+  const allRivals = useMemo<RivalBanquete[]>(
+    () => [...RIVAL_BANQUETES, ...communityRivals],
+    [communityRivals]
+  );
+
   // Rival Duel computation
   const currentRival = useMemo(
-    () =>
-      RIVAL_BANQUETES.find((r) => r.id === selectedRivalId) || RIVAL_BANQUETES[0],
-    [selectedRivalId]
+    () => allRivals.find((r) => r.id === selectedRivalId) || RIVAL_BANQUETES[0],
+    [allRivals, selectedRivalId]
   );
 
   const rivalSetlistSongs = useMemo(
@@ -711,10 +755,10 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
         {/* ===================================================================== */}
         {activeTab === 'duelo' && (
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
-            {/* Left Column: Choose Rival Banquete */}
+            {/* Left Column: Choose Rival Banquete (Classic AI Legends + Community Users) */}
             <div className="lg:col-span-4 border-r border-[#2e231e] bg-[#120e0c] p-4 overflow-y-auto space-y-3">
               <div className="text-xs font-mono tabular-nums text-[#f59e0b]">
-                ELEGÍ TU RIVAL DE SETLIST ({gameProgress.defeatedRivalIds.length}/4 DERROTADOS)
+                1. RIVALES LEYENDA ({gameProgress.defeatedRivalIds.length}/4 DERROTADOS)
               </div>
               {RIVAL_BANQUETES.map((riv) => {
                 const isSelected = riv.id === currentRival.id;
@@ -748,6 +792,45 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
                   </button>
                 );
               })}
+
+              {communityRivals.length > 0 && (
+                <>
+                  <div className="pt-3 border-t border-[#2e231e] text-xs font-mono tabular-nums text-[#f59e0b]">
+                    2. BATALLAS CONTRA OTROS USUARIOS (RANKING GLOBAL)
+                  </div>
+                  {communityRivals.map((riv) => {
+                    const isSelected = riv.id === currentRival.id;
+                    const isDefeated = gameProgress.defeatedRivalIds.includes(riv.id);
+                    return (
+                      <button
+                        key={riv.id}
+                        onClick={() => setSelectedRivalId(riv.id)}
+                        className={`w-full text-left p-3 rounded border transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#281814] border-[#f59e0b] text-[#f5efe2]'
+                            : 'sketch-card text-[#c5b8a5] hover:border-[#6e5546]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 text-[11px] font-mono tabular-nums text-[#a89984]">
+                          <span className="truncate">{riv.archetype}</span>
+                          <span className="text-[#fbbf24] shrink-0">{riv.difficulty}</span>
+                        </div>
+                        <div className="text-base font-rock text-[#f5efe2] mt-0.5 flex items-center justify-between gap-2">
+                          <span>vs. {riv.name}</span>
+                          {isDefeated && (
+                            <span className="text-xs font-mono text-[#22c55e]">
+                              ✓ VENCIDO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#9c8c79] mt-0.5">
+                          {riv.challengeQuote}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
             </div>
 
             {/* Right Column: Head-to-Head 5-Category Battle */}
@@ -1142,7 +1225,7 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
                 </div>
 
                 <div className="divide-y divide-[#261d19]">
-                  {gameProgress.leaderboard.map((entry, idx) => (
+                  {communityBanquetes.map((entry, idx) => (
                     <div
                       key={entry.id}
                       className={`py-2.5 px-2 flex items-center justify-between gap-3 ${
@@ -1163,12 +1246,27 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <div className="text-sm font-mono tabular-nums font-bold text-[#ef4444]">
-                          {entry.totalScore.toLocaleString('es-AR')} pts
-                        </div>
-                        <div className="text-[11px] font-mono tabular-nums text-[#8c7c68]">
-                          {entry.dateLabel}
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        {entry.songIds && entry.songIds.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedRivalId(`user-${entry.id}`);
+                              setActiveTab('duelo');
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-semibold bg-[#291811] hover:bg-[#b91c1c] text-[#fbbf24] hover:text-white border border-[#f59e0b]/40 rounded flex items-center gap-1 cursor-pointer"
+                          >
+                            <Swords className="w-3 h-3" />
+                            <span>Batallar</span>
+                          </button>
+                        )}
+                        <div className="text-right">
+                          <div className="text-sm font-mono tabular-nums font-bold text-[#ef4444]">
+                            {entry.totalScore.toLocaleString('es-AR')} pts
+                          </div>
+                          <div className="text-[11px] font-mono tabular-nums text-[#8c7c68]">
+                            {entry.dateLabel}
+                          </div>
                         </div>
                       </div>
                     </div>

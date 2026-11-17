@@ -21,7 +21,10 @@ import {
   BandCutoutTextures,
 } from '../utils/musicianSprites';
 
-import { StageUnlockableId } from '../data/banqueteGameData';
+import {
+  StageUnlockableId,
+  NECOCHEA_TICKETS_OFFICIAL_URL,
+} from '../data/banqueteGameData';
 import { rockAudio } from '../utils/rockAudioEngine';
 
 export const NECOCHEA_SCREEN_URL = resolvePublicAssetUrl('/assets/aistudio/image_26d06c56.png');
@@ -461,6 +464,8 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
   const guestMeshRef = useRef<THREE.Mesh | null>(null);
   const maxAnisoRef = useRef<number>(1);
   const userInteractingRef = useRef<boolean>(false);
+  const [hoveredNecocheaPoster, setHoveredNecocheaPoster] =
+    React.useState<boolean>(false);
 
   useEffect(() => {
     songCountRef.current = setlist.length;
@@ -909,6 +914,8 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
     };
     necocheaImg.src = NECOCHEA_SCREEN_URL;
 
+    const necocheaPosterTargets: THREE.Object3D[] = [];
+
     [-15.8, 15.8].forEach((sx) => {
       const screenFrameGroup = new THREE.Group();
       screenFrameGroup.position.set(sx, 6.1, 0.55);
@@ -921,12 +928,14 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
       backing.position.set(0, 0, -0.16);
       backing.castShadow = true;
       screenFrameGroup.add(backing);
+      necocheaPosterTargets.push(backing);
 
       const screenMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(5.5, 4.9),
         sideScreenMat
       );
       screenFrameGroup.add(screenMesh);
+      necocheaPosterTargets.push(screenMesh);
 
       [-2.5, 2.5].forEach((lx) => {
         const leg = new THREE.Mesh(
@@ -1885,6 +1894,53 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
 
     frameId = requestAnimationFrame(tick);
 
+    // Raycasting on the 2 Necochea Posters to open official Arte Infernal Tickets URL
+    const raycaster = new THREE.Raycaster();
+    const pointerNdc = new THREE.Vector2();
+    let pointerDownX = 0;
+    let pointerDownY = 0;
+
+    const checkHitsNecocheaPoster = (clientX: number, clientY: number): boolean => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return false;
+      pointerNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointerNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointerNdc, camera);
+      const hits = raycaster.intersectObjects(necocheaPosterTargets, false);
+      return hits.length > 0;
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const hit = checkHitsNecocheaPoster(e.clientX, e.clientY);
+      renderer.domElement.style.cursor = hit ? 'pointer' : 'grab';
+      sideScreenMat.emissiveIntensity = hit ? 0.72 : 0.42;
+      setHoveredNecocheaPoster(hit);
+    };
+
+    const handlePointerDown = (e: PointerEvent) => {
+      pointerDownX = e.clientX;
+      pointerDownY = e.clientY;
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      const dist = Math.hypot(e.clientX - pointerDownX, e.clientY - pointerDownY);
+      if (dist > 6) return; // Ignore camera drag gestures
+      if (checkHitsNecocheaPoster(e.clientX, e.clientY)) {
+        const a = document.createElement('a');
+        a.href = NECOCHEA_TICKETS_OFFICIAL_URL;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    };
+
+    const domEl = renderer.domElement;
+    domEl.addEventListener('pointermove', handlePointerMove);
+    domEl.addEventListener('pointerdown', handlePointerDown);
+    domEl.addEventListener('pointerup', handlePointerUp);
+
     const handleResize = () => {
       if (!container) return;
       const w = container.clientWidth || window.innerWidth;
@@ -1898,6 +1954,9 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      domEl.removeEventListener('pointermove', handlePointerMove);
+      domEl.removeEventListener('pointerdown', handlePointerDown);
+      domEl.removeEventListener('pointerup', handlePointerUp);
       cancelAnimationFrame(frameId);
       clearTimeout(frameId);
       controls.dispose();
@@ -1906,10 +1965,17 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
   }, []);
 
   return (
-    <div
-      ref={mountRef}
-      className="w-full h-full relative overflow-hidden select-none"
-      aria-label="Playa 3D de Necochea con el escenario ilustrado, público y pantallas del Banquete de La Renga"
-    />
+    <div className="w-full h-full relative overflow-hidden select-none">
+      <div
+        ref={mountRef}
+        className="w-full h-full relative overflow-hidden select-none"
+        aria-label="Playa 3D de Necochea con el escenario ilustrado, público y pantallas del Banquete de La Renga"
+      />
+      {hoveredNecocheaPoster && (
+        <div className="pointer-events-none absolute top-20 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded sketch-panel border-2 border-[#f59e0b] text-xs font-bold text-[#fbbf24] shadow-xl">
+          🎟️ Hacé clic en el cartel de Necochea para sacar las Entradas Oficiales (Arte Infernal) ↗
+        </div>
+      )}
+    </div>
   );
 };
