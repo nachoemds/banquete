@@ -2,7 +2,7 @@
 
 @layer base {
   :root {
-    --font-display: 'Pirata One', Georgia, serif;
+    --font-display: 'Germania One', Georgia, serif;
     --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
   }

@@ -231,7 +231,7 @@ function createFallbackFlagTexture(
   ctx.strokeRect(8, 8, 496, 240);
 
   ctx.fillStyle = '#090706';
-  ctx.font = 'bold 42px "Pirata One", Georgia, serif';
+  ctx.font = 'bold 42px "Germania One", Georgia, serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(phrase, 256, 108);

@@ -1,12 +1,12 @@
 // src/utils/rockAudioEngine.ts
-import { LaRengaSong } from '../data/laRengaSongs';
 
 class RockAudioEngine {
   private ctx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private timeData: Uint8Array<ArrayBuffer> | null = null;
-  private isPlayingRiff = false;
-  private stopTimer: number | null = null;
+  private liveStreamActive = false;
+  private liveStreamBpm = 135;
+  private connectedElements = new WeakSet<HTMLMediaElement>();
 
   private ensureContext(): AudioContext {
     if (!this.ctx) {
@@ -33,100 +33,55 @@ class RockAudioEngine {
   }
 
   /**
-   * Returns a normalized 0..1 real-time audio energy level when a Riff or Roar is playing.
+   * Connects an HTML5 <audio> element to the Web Audio AnalyserNode so real song previews
+   * physically drive the 3D stage speaker cones.
+   */
+  public connectMediaElement(audioEl: HTMLAudioElement) {
+    try {
+      if (this.connectedElements.has(audioEl)) return;
+      const ctx = this.ensureContext();
+      const source = ctx.createMediaElementSource(audioEl);
+      source.connect(this.getOutputNode(ctx));
+      this.connectedElements.add(audioEl);
+    } catch {
+      // Fallback to rhythmic pulse if browser blocks cross-origin MediaElementSource
+    }
+  }
+
+  public setLiveStreamState(active: boolean, tempoBpm = 135) {
+    this.liveStreamActive = active;
+    this.liveStreamBpm = tempoBpm || 135;
+  }
+
+  /**
+   * Returns a normalized 0..1 real-time audio energy level when a real song stream or crowd roar is playing.
    */
   public getAudioPulse(): number {
-    if (!this.analyser || !this.timeData || !this.ctx || this.ctx.state !== 'running') {
-      return this.isPlayingRiff ? 0.65 : 0;
+    let measuredRms = 0;
+    if (this.analyser && this.timeData && this.ctx && this.ctx.state === 'running') {
+      this.analyser.getByteTimeDomainData(this.timeData);
+      let sumSquares = 0;
+      for (let i = 0; i < this.timeData.length; i++) {
+        const centered = (this.timeData[i] - 128) / 128;
+        sumSquares += centered * centered;
+      }
+      measuredRms = Math.min(1, Math.sqrt(sumSquares / this.timeData.length) * 4.2);
     }
-    this.analyser.getByteTimeDomainData(this.timeData);
-    let sumSquares = 0;
-    for (let i = 0; i < this.timeData.length; i++) {
-      const centered = (this.timeData[i] - 128) / 128;
-      sumSquares += centered * centered;
+
+    if (measuredRms > 0.03) {
+      return measuredRms;
     }
-    const rms = Math.sqrt(sumSquares / this.timeData.length);
-    return Math.min(1, rms * 4.2);
-  }
 
-  private makeDistortionCurve(amount = 180): Float32Array<ArrayBuffer> {
-    const k = amount;
-    const nSamples = 44100;
-    const curve = new Float32Array(new ArrayBuffer(nSamples * 4));
-    const deg = Math.PI / 180;
-    for (let i = 0; i < nSamples; ++i) {
-      const x = (i * 2) / nSamples - 1;
-      curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+    if (this.liveStreamActive) {
+      const t = performance.now() / 1000;
+      const beatHz = this.liveStreamBpm / 60;
+      const kick = Math.pow(Math.max(0, Math.sin(t * beatHz * Math.PI * 2)), 4);
+      const snare = Math.pow(Math.max(0, Math.sin(t * beatHz * Math.PI - Math.PI / 2)), 6) * 0.75;
+      const guitarRumble = 0.25 + 0.15 * Math.sin(t * beatHz * Math.PI * 4);
+      return Math.min(1, guitarRumble + kick * 0.55 + snare * 0.35);
     }
-    return curve;
-  }
 
-  public playPowerRiff(song: LaRengaSong) {
-    try {
-      const ctx = this.ensureContext();
-      this.stopRiff();
-      this.isPlayingRiff = true;
-
-      const roots = [82.41, 98.0, 110.0, 123.47, 146.83];
-      const hash = song.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-      const baseFreq = roots[hash % roots.length];
-      const stepSec = Math.max(0.16, 60 / song.tempoBpm / 2);
-
-      const pattern =
-        song.energy === 'pogo'
-          ? [1, 1, 1.5, 1, 1.33, 1.5, 1, 2]
-          : song.energy === 'balada'
-          ? [1, 1.2, 1.5, 1.33, 1, 1.5]
-          : [1, 1.33, 1.5, 1.5, 1.12, 1];
-
-      const now = ctx.currentTime;
-      const master = ctx.createGain();
-      master.gain.setValueAtTime(0.16, now);
-      master.connect(this.getOutputNode(ctx));
-
-      const shaper = ctx.createWaveShaper();
-      shaper.curve = this.makeDistortionCurve(song.energy === 'balada' ? 40 : 220);
-      shaper.oversample = '4x';
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(2100, now);
-
-      shaper.connect(filter);
-      filter.connect(master);
-
-      pattern.forEach((mult, idx) => {
-        const start = now + idx * stepSec;
-        const dur = stepSec * 0.88;
-        const freq = baseFreq * mult;
-
-        [1, 1.498, 2].forEach((harmonic, hIdx) => {
-          const osc = ctx.createOscillator();
-          const noteGain = ctx.createGain();
-          osc.type = hIdx === 0 ? 'sawtooth' : 'square';
-          osc.frequency.setValueAtTime(freq * harmonic, start);
-
-          noteGain.gain.setValueAtTime(0.001, start);
-          noteGain.gain.linearRampToValueAtTime(
-            hIdx === 0 ? 0.35 : 0.2,
-            start + 0.015
-          );
-          noteGain.gain.exponentialRampToValueAtTime(0.001, start + dur);
-
-          osc.connect(noteGain);
-          noteGain.connect(shaper);
-
-          osc.start(start);
-          osc.stop(start + dur + 0.02);
-        });
-      });
-
-      this.stopTimer = window.setTimeout(() => {
-        this.isPlayingRiff = false;
-      }, pattern.length * stepSec * 1000);
-    } catch {
-      // Ignore if autoplay blocked
-    }
+    return 0;
   }
 
   /**
@@ -242,14 +197,6 @@ class RockAudioEngine {
     } catch {
       // Ignore audio errors
     }
-  }
-
-  public stopRiff() {
-    if (this.stopTimer) {
-      clearTimeout(this.stopTimer);
-      this.stopTimer = null;
-    }
-    this.isPlayingRiff = false;
   }
 }
 

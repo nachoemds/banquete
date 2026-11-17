@@ -15,6 +15,8 @@ import {
   X,
 } from 'lucide-react';
 
+import { SITE_COPY } from '../data/siteCopy';
+
 interface BanqueteOnboardingModalProps {
   isOpen: boolean;
   setlistCount: number;
@@ -24,43 +26,7 @@ interface BanqueteOnboardingModalProps {
   onAutoFillDemo: () => void;
 }
 
-interface OnboardingStep {
-  number: string;
-  tag: string;
-  title: string;
-  subtitle: string;
-}
-
-const STEPS: OnboardingStep[] = [
-  {
-    number: '01',
-    tag: 'EL CONCEPTO',
-    title: 'Bienvenido al Banquete en la Playa 3D',
-    subtitle:
-      'Un simulador interactivo y juego musical de La Renga donde vos sos el encargado de armar la lista de 36 canciones para hacer temblar la costa de Necochea.',
-  },
-  {
-    number: '02',
-    tag: 'ARMAR LA PLAYLIST',
-    title: '¿Cómo se arma un Setlist Legendario?',
-    subtitle:
-      'No alcanza con tirar temas al azar: el motor del Banquete evalúa la mística, el recorrido por los 11 discos y el equilibrio del pogo.',
-  },
-  {
-    number: '03',
-    tag: 'MODO JUEGO',
-    title: 'El Oráculo de Shows Reales & Duelo de Setlists',
-    subtitle:
-      'Poné a prueba tu sabiduría renguera adivinando listas históricas reales o enfrentando tu Banquete mano a mano contra otros curadores.',
-  },
-  {
-    number: '04',
-    tag: 'RECOMPENSAS & CÁMARAS',
-    title: 'Entradas Coleccionables y Efectos 3D en Vivo',
-    subtitle:
-      'Desbloqueá entradas históricas numeradas, trofeos y 4 efectos escénicos para encender el escenario mientras suena tu lista.',
-  },
-];
+const STEPS = SITE_COPY.onboarding.steps;
 
 export const BanqueteOnboardingModal: React.FC<BanqueteOnboardingModalProps> = ({
   isOpen,
@@ -349,7 +315,7 @@ export const BanqueteOnboardingModal: React.FC<BanqueteOnboardingModalProps> = (
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[#ef4444] shrink-0" />
                     <span>
-                      <strong className="text-[#f5efe2]">Botón ¡Agitar! y Riff:</strong> Enciende las bengalas del campo, acelera el pogo y hace rugir la guitarra de Chizzo.
+                      <strong className="text-[#f5efe2]">Botón ¡Agitar! y Reproductor In-App:</strong> Enciende las bengalas del campo, acelera el pogo y escuchá los previews oficiales de tu lista.
                     </span>
                   </li>
                   <li className="flex items-center gap-2">

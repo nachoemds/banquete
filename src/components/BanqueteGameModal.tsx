@@ -221,8 +221,6 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
 
     if (exactHits >= 4) {
       rockAudio.playCrowdRoar();
-    } else if (setlist[0]) {
-      rockAudio.playPowerRiff(setlist[0]);
     }
   };
 
@@ -321,8 +319,6 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
 
     if (won) {
       rockAudio.playCrowdRoar();
-    } else if (setlist[0]) {
-      rockAudio.playPowerRiff(setlist[0]);
     }
   };
 

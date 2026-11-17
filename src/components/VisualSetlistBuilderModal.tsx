@@ -5,7 +5,6 @@ import {
   Music,
   Sparkles,
   Search,
-  Volume2,
   Plus,
   Check,
   Trash2,
@@ -54,7 +53,6 @@ interface VisualSetlistBuilderModalProps {
   onAutoFill36: () => void;
   onClearSetlist: () => void;
   onLoadPreset: (songIds: string[]) => void;
-  onPreviewRiff: (song: LaRengaSong) => void;
 }
 
 type SpecialFilter = 'ALL' | 'OPENERS' | 'CLOSERS';
@@ -131,7 +129,6 @@ export const VisualSetlistBuilderModal: React.FC<VisualSetlistBuilderModalProps>
   onAutoFill36,
   onClearSetlist,
   onLoadPreset,
-  onPreviewRiff,
 }) => {
   // 'batea' = Large Album Covers Grid; 'songs' = Inside a specific album or full song catalog
   const [browseStage, setBrowseStage] = useState<'batea' | 'songs'>(() =>
@@ -967,17 +964,6 @@ export const VisualSetlistBuilderModal: React.FC<VisualSetlistBuilderModalProps>
                                 <span className="absolute top-0 left-0 px-1.5 py-0.2 text-[10px] font-mono font-bold bg-black/85 text-[#fbbf24] rounded-br">
                                   {String(trackNum).padStart(2, '0')}
                                 </span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onPreviewRiff(song);
-                                  }}
-                                  title={`Escuchar riff MIDI de ${song.title}`}
-                                  className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[#fbbf24] cursor-pointer"
-                                >
-                                  <Volume2 className="w-5 h-5" />
-                                </button>
                               </div>
 
                               <div className="min-w-0 flex-1">
@@ -1030,18 +1016,6 @@ export const VisualSetlistBuilderModal: React.FC<VisualSetlistBuilderModalProps>
 
                             {/* Right Action Buttons: Reemplazar vs Sumar / En Lista */}
                             <div className="flex flex-col items-end gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onPreviewRiff(song);
-                                }}
-                                className="px-2 py-0.5 text-[10px] font-mono text-[#c5b8a5] hover:text-white bg-[#110d0b] border border-[#2e231d] rounded flex items-center gap-1 cursor-pointer"
-                              >
-                                <Volume2 className="w-3 h-3 text-[#f59e0b]" />
-                                <span>Riff</span>
-                              </button>
-
                               {isReplacingMode ? (
                                 <button
                                   type="button"
@@ -1456,14 +1430,6 @@ export const VisualSetlistBuilderModal: React.FC<VisualSetlistBuilderModalProps>
                                 Al #01
                               </button>
                             )}
-                          <button
-                            type="button"
-                            onClick={() => onPreviewRiff(song)}
-                            title="Escuchar riff"
-                            className="p-1 text-[#a89984] hover:text-[#fbbf24] cursor-pointer"
-                          >
-                            <Volume2 className="w-3.5 h-3.5" />
-                          </button>
                           <button
                             type="button"
                             onClick={() => onMoveSong(idx, -1)}

@@ -60,11 +60,11 @@ export function drawHandLetteredLaRengaLogo(
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  ctx.font = '900 46px "Pirata One", Georgia, serif';
+  ctx.font = '900 46px "Germania One", Georgia, serif';
   for (let d = 9; d >= 1; d--) {
     ctx.fillStyle = '#090706';
     ctx.fillText('LA', -22 - d * 0.9, -28 + d * 0.9);
-    ctx.font = '900 62px "Pirata One", Georgia, serif';
+    ctx.font = '900 62px "Germania One", Georgia, serif';
     ctx.fillText('RENGA', 4 - d * 0.9, 18 + d * 0.9);
   }
 
@@ -72,22 +72,22 @@ export function drawHandLetteredLaRengaLogo(
   ctx.lineCap = 'round';
   ctx.strokeStyle = '#090706';
   ctx.lineWidth = 11;
-  ctx.font = '900 46px "Pirata One", Georgia, serif';
+  ctx.font = '900 46px "Germania One", Georgia, serif';
   ctx.strokeText('LA', -22, -28);
-  ctx.font = '900 62px "Pirata One", Georgia, serif';
+  ctx.font = '900 62px "Germania One", Georgia, serif';
   ctx.strokeText('RENGA', 4, 18);
 
   ctx.strokeStyle = '#dc2626';
   ctx.lineWidth = 5.5;
-  ctx.font = '900 46px "Pirata One", Georgia, serif';
+  ctx.font = '900 46px "Germania One", Georgia, serif';
   ctx.strokeText('LA', -22, -28);
-  ctx.font = '900 62px "Pirata One", Georgia, serif';
+  ctx.font = '900 62px "Germania One", Georgia, serif';
   ctx.strokeText('RENGA', 4, 18);
 
   ctx.fillStyle = '#f59e0b';
-  ctx.font = '900 46px "Pirata One", Georgia, serif';
+  ctx.font = '900 46px "Germania One", Georgia, serif';
   ctx.fillText('LA', -22, -28);
-  ctx.font = '900 62px "Pirata One", Georgia, serif';
+  ctx.font = '900 62px "Germania One", Georgia, serif';
   ctx.fillText('RENGA', 4, 18);
 
   ctx.beginPath();
