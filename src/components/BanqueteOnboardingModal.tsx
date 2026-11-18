@@ -656,12 +656,12 @@ export const BanqueteOnboardingModal: React.FC<BanqueteOnboardingModalProps> = (
               {welcomePhase === 'ask_name' ? (
                 <div className="relative z-10 text-[#1d1814]">
                   <h2 className="font-rock tracking-wide text-[#181310] leading-tight text-[clamp(1.35rem,3vw,2.5rem)]">
-                    ¡Buenas, locura! ¿Cómo te llamás?
+                    ¡Hola, locura! ¿Cómo te llamás?
                   </h2>
 
                   <p className="mt-2 sm:mt-3 text-[#26201b] leading-relaxed font-normal text-[clamp(0.88rem,1.4vw,1.18rem)]">
                     Antes de abrirte el portón del predio en Necochea, decime tu{' '}
-                    <strong>nombre o apodo renguero</strong> así ya queda anotado
+                    <strong>nombre o apodo </strong> así ya queda anotado
                     para tu lista y tus entradas:
                   </p>
 
