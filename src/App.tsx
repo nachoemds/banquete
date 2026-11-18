@@ -50,7 +50,9 @@ import {
   BONUS_CULT_SONGS,
   STAGE_UNLOCKABLES,
   GUEST_MUSICIANS_BY_SCORE,
-  getActiveGuestForScore,
+  evaluateGuestUnlockStatus,
+  getSelectedGuestTier,
+  GuestMusicianId,
   NECOCHEA_TICKETS_OFFICIAL_URL,
   GameProgressState,
   StageUnlockableId,
@@ -219,15 +221,24 @@ export default function App() {
   );
 
   const activeGuestTier = useMemo(
-    () => getActiveGuestForScore(scoreResult.totalScore),
-    [scoreResult.totalScore]
+    () =>
+      getSelectedGuestTier(
+        gameProgress.selectedGuestId,
+        gameProgress.unlockedGuestIds
+      ),
+    [gameProgress.selectedGuestId, gameProgress.unlockedGuestIds]
   );
 
-  // Automatically check and award setlist-based trophies & stage unlockables
+  // Automatically check and award setlist-based trophies, stage unlockables & guest musicians
   useEffect(() => {
     const newTrophies = new Set(gameProgress.earnedTrophyIds);
     const newUnlockedStages = new Set(gameProgress.unlockedStageIds);
     const newEnabledStages = new Set(gameProgress.enabledStageIds);
+    const newUnlockedGuests = new Set<GuestMusicianId>(
+      gameProgress.unlockedGuestIds || ['guest_carpo']
+    );
+    let nextSelectedGuestId: GuestMusicianId =
+      gameProgress.selectedGuestId || 'guest_carpo';
     let changed = false;
 
     if (setlist.length === 36 && !newTrophies.has('tr_first_banquete')) {
@@ -262,7 +273,7 @@ export default function App() {
       newUnlockedStages.add('stage_fire');
       changed = true;
     }
-    // Unlock Guest Musician (starting with El Carpo at 2,000 pts) according to score points
+    // Unlock Guest Musician stage slot
     if (
       scoreResult.totalScore >= 2000 &&
       !newUnlockedStages.has('guest_musician')
@@ -271,6 +282,22 @@ export default function App() {
       newEnabledStages.add('guest_musician');
       changed = true;
     }
+    // Check unlock conditions for each of the 5 Guest Musicians
+    GUEST_MUSICIANS_BY_SCORE.forEach((guest) => {
+      const status = evaluateGuestUnlockStatus(
+        guest.id,
+        setlist,
+        scoreResult.totalScore,
+        gameProgress.solvedOracleIds,
+        gameProgress.defeatedRivalIds
+      );
+      if (status.unlocked && !newUnlockedGuests.has(guest.id)) {
+        newUnlockedGuests.add(guest.id);
+        // When a new guest is unlocked for the first time, select them on stage (replacing the previous one)
+        nextSelectedGuestId = guest.id;
+        changed = true;
+      }
+    });
     // Unlock Golden Pyro if 3+ tickets collected
     if (
       gameProgress.tickets.length >= 3 &&
@@ -286,6 +313,8 @@ export default function App() {
         earnedTrophyIds: Array.from(newTrophies),
         unlockedStageIds: Array.from(newUnlockedStages),
         enabledStageIds: Array.from(newEnabledStages),
+        unlockedGuestIds: Array.from(newUnlockedGuests),
+        selectedGuestId: nextSelectedGuestId,
       }));
     }
   }, [
@@ -294,6 +323,10 @@ export default function App() {
     gameProgress.earnedTrophyIds,
     gameProgress.unlockedStageIds,
     gameProgress.enabledStageIds,
+    gameProgress.unlockedGuestIds,
+    gameProgress.selectedGuestId,
+    gameProgress.solvedOracleIds,
+    gameProgress.defeatedRivalIds,
     gameProgress.tickets.length,
   ]);
 
@@ -479,6 +512,33 @@ export default function App() {
         ...prev,
         unlockedStageIds: nextUnlocked,
         enabledStageIds: nextEnabled,
+      };
+    });
+  };
+
+  // Enforce that ONLY ONE Guest Musician can be brought onto the 3D stage at a time
+  const handleSelectGuestMusician = (guestId: GuestMusicianId) => {
+    setGameProgress((prev) => {
+      const nextUnlockedGuests: GuestMusicianId[] = (
+        prev.unlockedGuestIds || ['guest_carpo']
+      ).includes(guestId)
+        ? prev.unlockedGuestIds || ['guest_carpo']
+        : [...(prev.unlockedGuestIds || ['guest_carpo']), guestId];
+      const nextUnlockedStages: StageUnlockableId[] =
+        prev.unlockedStageIds.includes('guest_musician')
+          ? prev.unlockedStageIds
+          : [...prev.unlockedStageIds, 'guest_musician'];
+      const nextEnabledStages: StageUnlockableId[] =
+        prev.enabledStageIds.includes('guest_musician')
+          ? prev.enabledStageIds
+          : [...prev.enabledStageIds, 'guest_musician'];
+
+      return {
+        ...prev,
+        selectedGuestId: guestId,
+        unlockedGuestIds: nextUnlockedGuests,
+        unlockedStageIds: nextUnlockedStages,
+        enabledStageIds: nextEnabledStages,
       };
     });
   };
@@ -1095,6 +1155,16 @@ export default function App() {
                     </button>
                   );
                 })}
+                <button
+                  onClick={() => {
+                    setGameInitialTab('vitrina');
+                    setActiveModal('game');
+                  }}
+                  title="Abrir Camarín de Invitados (El Carpo, Pato Fontanet, Pity, Mollo e Indio · Solo 1 en Escenario)"
+                  className="px-2 py-1 text-[11px] font-semibold rounded border bg-[#221610] hover:bg-[#312017] text-[#fbbf24] border-[#f59e0b]/60 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  Cambiar Invitado ({gameProgress.unlockedGuestIds?.length || 1}/5)
+                </button>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
@@ -1432,6 +1502,7 @@ export default function App() {
           gameProgress={gameProgress}
           communityBanquetes={communityBanquetes}
           onToggleStageUnlockable={handleToggleStageUnlockable}
+          onSelectGuestMusician={handleSelectGuestMusician}
           onRecordOracleAttempt={handleRecordOracleAttempt}
           onRecordDuelResult={handleRecordDuelResult}
           onRegisterLeaderboardBanquete={handleRegisterLeaderboardBanquete}

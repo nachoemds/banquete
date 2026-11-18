@@ -500,7 +500,7 @@ export const BanqueteOnboardingModal: React.FC<BanqueteOnboardingModalProps> = (
                       titleInput.trim() || 'Mi Banquete en Necochea'
                     );
                   }}
-                  placeholder="Tu apodo (ej. Nacho_73)"
+                  placeholder="Tu apodo (ej. Tete_73)"
                   maxLength={40}
                   className="px-3 py-1.5 text-xs bg-[#0d0a09] border border-[#4a382d] rounded text-[#f5efe2] focus:outline-none focus:border-[#f59e0b] w-full sm:w-44"
                 />
@@ -677,7 +677,7 @@ export const BanqueteOnboardingModal: React.FC<BanqueteOnboardingModalProps> = (
                       type="text"
                       value={aliasInput}
                       onChange={(e) => setAliasInput(e.target.value)}
-                      placeholder="Escribí tu nombre o apodo (ej. Nacho)..."
+                      placeholder="Escribí tu nombre o apodo (ej. Tete)..."
                       maxLength={40}
                       className="flex-1 px-3.5 py-2 sm:px-4 sm:py-2.5 text-sm sm:text-base font-bold bg-[#fdf6e7] text-[#181310] placeholder-[#7a6852] border-2 border-[#181310] rounded-xl focus:outline-none focus:border-[#b91c1c] shadow-inner"
                     />

@@ -378,7 +378,7 @@ export const BanqueteShareModal: React.FC<BanqueteShareModalProps> = ({
                         titleInput.trim() || 'Mi Banquete en Necochea'
                       );
                     }}
-                    placeholder="Ej: Nacho_Mataderos"
+                    placeholder="Ej: Tete_Mataderos"
                     maxLength={40}
                     className="w-full px-3 py-2 text-xs bg-[#0d0a09] border border-[#3a2c24] rounded text-[#f5efe2] focus:outline-none focus:border-[#f59e0b]"
                   />

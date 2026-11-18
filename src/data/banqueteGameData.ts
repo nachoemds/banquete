@@ -48,63 +48,178 @@ export interface StageUnlockable {
   effectDescription: string;
 }
 
+export type GuestMusicianId =
+  | 'guest_carpo'
+  | 'guest_pato'
+  | 'guest_pity'
+  | 'guest_mollo'
+  | 'guest_indio';
+
 export interface GuestMusicianTier {
-  id: string;
+  id: GuestMusicianId;
   name: string;
   nickname: string;
+  bandOrigin: string;
   instrument: string;
   minScore: number;
   assetUrl: string;
   iconicSongHint: string;
+  unlockConditionLabel: string;
+  unlockShortHint: string;
 }
 
 /**
- * Escalera de Invitados según los Puntos del Banquete.
- * Por ahora todos los escalones usan el asset ilustrado de El Carpo (/assets/aistudio/Carpo_01_619377f6.png)
- * hasta que vayas subiendo los PNG de los demás invitados.
+ * Los 5 Grandes Invitados del Rock Nacional para el Banquete.
+ * REGLA DE ESCENARIO: Cada uno tiene su propio requisito de desbloqueo,
+ * pero SOLO 1 INVITADO puede subir al escenario 3D a la vez.
  */
 export const GUEST_MUSICIANS_BY_SCORE: GuestMusicianTier[] = [
   {
     id: 'guest_carpo',
     name: 'Norberto "Pappo" Napolitano',
     nickname: 'El Carpo',
+    bandOrigin: 'Pappo\'s Blues / Riff',
     instrument: 'Guitarra Gibson Les Paul',
     minScore: 2000,
     assetUrl: '/assets/aistudio/Carpo_01_619377f6.png',
-    iconicSongHint: 'Hey Hey My My / Rock and Roll y Fiebre',
+    iconicSongHint: 'Hey Hey, My My / El Hombre Suburbano',
+    unlockConditionLabel:
+      'Alcanzar 2.000 PTS en tu Banquete (Hermano mayor de ruta, habilitado de base)',
+    unlockShortHint: '2.000 PTS (Habilitado)',
   },
   {
-    id: 'guest_sokol',
-    name: 'Alejandro "Bocha" Sokol',
-    nickname: 'El Bocha (Próx. Asset)',
-    instrument: 'Voz Invitada',
-    minScore: 5500,
-    assetUrl: '/assets/aistudio/Carpo_01_619377f6.png',
-    iconicSongHint: 'El final es en donde partí (River 2002)',
+    id: 'guest_pato',
+    name: 'Patricio "Pato" Fontanet',
+    nickname: 'Pato Fontanet',
+    bandOrigin: 'Callejeros / Don Osvaldo',
+    instrument: 'Voz Invitada & Micrófono con Pañuelo',
+    minScore: 5000,
+    assetUrl: '/assets/aistudio/pato_d92eb5aa.png',
+    iconicSongHint: 'El viento que todo empuja / Hablando de la libertad',
+    unlockConditionLabel:
+      'Superar 5.000 PTS en tu Banquete o incluir al menos 4 Baladas / Himnos en tu lista',
+    unlockShortHint: '5.000 PTS o 4 Baladas/Himnos',
+  },
+  {
+    id: 'guest_pity',
+    name: 'Cristian "Pity" Álvarez',
+    nickname: 'El Pity',
+    bandOrigin: 'Viejas Locas / Intoxicados',
+    instrument: 'Voz Invitada & Rocanrol Barrial',
+    minScore: 6200,
+    assetUrl: '/assets/aistudio/pity_017e7b15.png',
+    iconicSongHint: 'Somos los mismos de siempre / Buseca y vino tinto',
+    unlockConditionLabel:
+      'Incluir al menos 4 Joyas de Culto (Lados B) en tu lista, superar 6.200 PTS o resolver 1 fecha del Oráculo',
+    unlockShortHint: '4 Joyas de Culto o 1 Oráculo',
   },
   {
     id: 'guest_mollo',
     name: 'Ricardo Mollo',
-    nickname: 'Mollo (Próx. Asset)',
-    instrument: 'Guitarra Fender Stratocaster',
+    nickname: 'Mollo',
+    bandOrigin: 'Divididos / Sumo',
+    instrument: 'Guitarra Gibson SG & Voz',
     minScore: 7500,
-    assetUrl: '/assets/aistudio/Carpo_01_619377f6.png',
+    assetUrl: '/assets/aistudio/Mollo_01_c733651c.png',
     iconicSongHint: 'Balada del diablo y la muerte / El final es en donde partí',
+    unlockConditionLabel:
+      'Superar 7.500 PTS en tu Banquete o ganar al menos 1 Duelo de Setlists',
+    unlockShortHint: '7.500 PTS o ganar 1 Duelo',
   },
   {
-    id: 'guest_smilari',
-    name: 'Nacho Smilari',
-    nickname: 'Leyenda de Huracán (Próx. Asset)',
-    instrument: 'Guitarra Invitada',
-    minScore: 9000,
-    assetUrl: '/assets/aistudio/Carpo_01_619377f6.png',
-    iconicSongHint: 'Panic Show (Huracán 2017)',
+    id: 'guest_indio',
+    name: 'Carlos "Indio" Solari',
+    nickname: 'El Indio',
+    bandOrigin: 'Patricio Rey / Los Fundamentalistas',
+    instrument: 'Voz Mítica & Mística de Estadio',
+    minScore: 8500,
+    assetUrl: '/assets/aistudio/Indio_01_540c217e.png',
+    iconicSongHint: 'Panic Show / El rito de las 36 canciones',
+    unlockConditionLabel:
+      'Completar las 36 canciones con 8.500+ PTS o derrotar a "El Oráculo de Mataderos" en Duelo',
+    unlockShortHint: '36 temas + 8.500 PTS o Jefe Final',
   },
 ];
 
-export function getActiveGuestForScore(score: number): GuestMusicianTier {
-  const unlocked = GUEST_MUSICIANS_BY_SCORE.filter((g) => score >= g.minScore);
-  return unlocked[unlocked.length - 1] || GUEST_MUSICIANS_BY_SCORE[0];
+export function evaluateGuestUnlockStatus(
+  guestId: GuestMusicianId,
+  setlist: LaRengaSong[],
+  totalScore: number,
+  solvedOracleIds: string[],
+  defeatedRivalIds: string[]
+): { unlocked: boolean; progressText: string } {
+  switch (guestId) {
+    case 'guest_carpo': {
+      const unlocked = totalScore >= 2000 || setlist.length >= 1;
+      return {
+        unlocked,
+        progressText: unlocked
+          ? '¡Desbloqueado y listo para zapar!'
+          : `${totalScore.toLocaleString('es-AR')} / 2.000 PTS`,
+      };
+    }
+    case 'guest_pato': {
+      const balladsAndAnthems = setlist.filter(
+        (s) => s.energy === 'balada' || s.energy === 'himno'
+      ).length;
+      const unlocked = totalScore >= 5000 || balladsAndAnthems >= 4;
+      return {
+        unlocked,
+        progressText: unlocked
+          ? '¡Desbloqueado para subir a cantar!'
+          : `Puntos: ${totalScore.toLocaleString('es-AR')}/5.000 · Baladas/Himnos: ${balladsAndAnthems}/4`,
+      };
+    }
+    case 'guest_pity': {
+      const cultGems = setlist.filter((s) => s.rarity === 3 || s.energy === 'oculto').length;
+      const unlocked =
+        cultGems >= 4 || totalScore >= 6200 || solvedOracleIds.length >= 1;
+      return {
+        unlocked,
+        progressText: unlocked
+          ? '¡Desbloqueado para copar el micrófono!'
+          : `Joyas de Culto: ${cultGems}/4 · Oráculos: ${solvedOracleIds.length}/1`,
+      };
+    }
+    case 'guest_mollo': {
+      const unlocked = totalScore >= 7500 || defeatedRivalIds.length >= 1;
+      return {
+        unlocked,
+        progressText: unlocked
+          ? '¡Desbloqueado con su Gibson SG!'
+          : `Puntos: ${totalScore.toLocaleString('es-AR')}/7.500 · Duelos ganados: ${defeatedRivalIds.length}/1`,
+      };
+    }
+    case 'guest_indio': {
+      const beatBoss = defeatedRivalIds.includes('rival-oraculo-mataderos');
+      const unlocked =
+        (setlist.length === 36 && totalScore >= 8500) || beatBoss;
+      return {
+        unlocked,
+        progressText: unlocked
+          ? '¡Leyenda Suprema desbloqueada!'
+          : `Temas: ${setlist.length}/36 · Puntos: ${totalScore.toLocaleString('es-AR')}/8.500`,
+      };
+    }
+  }
+}
+
+export function getSelectedGuestTier(
+  selectedGuestId?: GuestMusicianId,
+  unlockedGuestIds: GuestMusicianId[] = ['guest_carpo']
+): GuestMusicianTier {
+  if (selectedGuestId) {
+    const found = GUEST_MUSICIANS_BY_SCORE.find((g) => g.id === selectedGuestId);
+    if (found && unlockedGuestIds.includes(found.id)) {
+      return found;
+    }
+  }
+  const lastUnlocked = GUEST_MUSICIANS_BY_SCORE.filter((g) =>
+    unlockedGuestIds.includes(g.id)
+  );
+  return (
+    lastUnlocked[lastUnlocked.length - 1] || GUEST_MUSICIANS_BY_SCORE[0]
+  );
 }
 
 export interface RivalBanquete {
@@ -160,6 +275,8 @@ export interface GameProgressState {
   banqueteTitle: string;
   unlockedStageIds: StageUnlockableId[];
   enabledStageIds: StageUnlockableId[];
+  unlockedGuestIds: GuestMusicianId[];
+  selectedGuestId: GuestMusicianId;
   earnedTrophyIds: string[];
   solvedOracleIds: string[];
   defeatedRivalIds: string[];
@@ -231,11 +348,11 @@ export const STAGE_UNLOCKABLES: StageUnlockable[] = [
   },
   {
     id: 'guest_musician',
-    name: 'Invitado en Tablas: El Carpo (Pappo)',
-    subtitle: 'Se van destrabando nuevos músicos invitados en el escenario según tus puntos',
-    requirementText: 'Escalones de Puntos: 2.000 pts (El Carpo) · 5.500 pts · 7.500 pts · 9.000 pts',
+    name: 'Invitado Leyenda en Tablas (Solo 1 en Escenario)',
+    subtitle: 'El Carpo, Pato Fontanet, El Pity, Ricardo Mollo o El Indio Solari',
+    requirementText: 'Cumplir el requisito de cada invitado y elegir cuál de los 5 sube al escenario',
     effectDescription:
-      'Sube al flanco derecho del escenario 3D a El Carpo con su Les Paul (y futuros invitados desbloqueables según el puntaje de tu Banquete).',
+      'Sube al flanco derecho del escenario 3D al músico invitado que elijas en el Camarín (solo puede subir 1 invitado a la vez).',
   },
   {
     id: 'golden_pyro',
@@ -727,8 +844,13 @@ export function loadGameProgress(): GameProgressState {
           typeof parsed.banqueteTitle === 'string' && parsed.banqueteTitle.trim()
             ? parsed.banqueteTitle.trim()
             : 'Mi Banquete en Necochea',
-        unlockedStageIds: Array.isArray(parsed.unlockedStageIds) ? parsed.unlockedStageIds : [],
-        enabledStageIds: Array.isArray(parsed.enabledStageIds) ? parsed.enabledStageIds : [],
+        unlockedStageIds: Array.isArray(parsed.unlockedStageIds) ? parsed.unlockedStageIds : ['guest_musician'],
+        enabledStageIds: Array.isArray(parsed.enabledStageIds) ? parsed.enabledStageIds : ['guest_musician'],
+        unlockedGuestIds:
+          Array.isArray(parsed.unlockedGuestIds) && parsed.unlockedGuestIds.length > 0
+            ? parsed.unlockedGuestIds
+            : ['guest_carpo'],
+        selectedGuestId: parsed.selectedGuestId || 'guest_carpo',
         earnedTrophyIds: Array.isArray(parsed.earnedTrophyIds) ? parsed.earnedTrophyIds : [],
         solvedOracleIds: Array.isArray(parsed.solvedOracleIds) ? parsed.solvedOracleIds : [],
         defeatedRivalIds: Array.isArray(parsed.defeatedRivalIds) ? parsed.defeatedRivalIds : [],
@@ -747,6 +869,8 @@ export function loadGameProgress(): GameProgressState {
     banqueteTitle: 'Mi Banquete en Necochea',
     unlockedStageIds: ['guest_musician'],
     enabledStageIds: ['guest_musician'],
+    unlockedGuestIds: ['guest_carpo'],
+    selectedGuestId: 'guest_carpo',
     earnedTrophyIds: [],
     solvedOracleIds: [],
     defeatedRivalIds: [],

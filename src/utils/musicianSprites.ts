@@ -18,6 +18,10 @@ export const ASSET_CHIZZO_03 = '/assets/aistudio/Chizzo03_c08903f3.png';
 export const ASSET_MANU_01 = '/assets/aistudio/Manu01_c27bdfcb.png';
 export const ASSET_MANU_02 = '/assets/aistudio/Manu02_df17bb1d.png';
 export const ASSET_CARPO_01 = '/assets/aistudio/Carpo_01_619377f6.png';
+export const ASSET_INDIO_01 = '/assets/aistudio/Indio_01_540c217e.png';
+export const ASSET_MOLLO_01 = '/assets/aistudio/Mollo_01_c733651c.png';
+export const ASSET_PATO_01 = '/assets/aistudio/pato_d92eb5aa.png';
+export const ASSET_PITY_01 = '/assets/aistudio/pity_017e7b15.png';
 
 // Clean single-character PNG for "Pibe a caballito" + Fan, Stage, Moon & Motorcycle sheets
 export const ASSET_CABALLITO = '/assets/aistudio/caballito_1c79ac64.png';
@@ -1016,20 +1020,49 @@ export async function loadCoastalEnvironmentTextures(
 }
 
 /**
- * Loads the hand-illustrated Guest Musician cutout (currently El Carpo / Pappo: Carpo_01_619377f6.png)
- * and removes any white background or interior gaps while keeping eyes & Gibson Les Paul crisp.
+ * Loads any of the 5 hand-illustrated Guest Musician cutouts (Carpo, Mollo, Pato, Pity, Indio)
+ * preserving exact aspect ratio and aligning feet at the bottom of the canvas so every guest
+ * stands at the same head-to-toe height on the 3D stage.
  */
 export async function loadGuestCutoutTexture(
   maxAnisotropy: number,
   assetUrl: string = ASSET_CARPO_01
 ): Promise<THREE.CanvasTexture> {
   const guestImg = await loadImage(assetUrl);
+  const outW = 560;
+  const outH = 720;
+  const pad = 10;
+
+  // Normalize aspect ratio onto a temporary canvas first so wide guitars (like Mollo's SG)
+  // or mic stands (like Pato's) don't distort the character proportions
+  const fittedCanvas = document.createElement('canvas');
+  fittedCanvas.width = outW;
+  fittedCanvas.height = outH;
+  const fCtx = fittedCanvas.getContext('2d')!;
+  fCtx.clearRect(0, 0, outW, outH);
+
+  const availW = outW - pad * 2;
+  const availH = outH - pad * 2;
+  const scale = Math.min(availW / guestImg.width, availH / guestImg.height);
+  const drawW = Math.round(guestImg.width * scale);
+  const drawH = Math.round(guestImg.height * scale);
+  const drawX = Math.round((outW - drawW) / 2);
+  const drawY = outH - pad - drawH; // Bottom-aligned so feet rest on the stage floor
+
+  fCtx.drawImage(guestImg, 0, 0, guestImg.width, guestImg.height, drawX, drawY, drawW, drawH);
+
+  const normalizedImg = new Image();
+  await new Promise<void>((resolve) => {
+    normalizedImg.onload = () => resolve();
+    normalizedImg.src = fittedCanvas.toDataURL('image/png');
+  });
+
   return extractWhiteBgCutoutTexture(
-    guestImg,
+    normalizedImg,
     { x0: 0.0, y0: 0.0, x1: 1.0, y1: 1.0 },
     maxAnisotropy,
-    560,
-    680,
+    outW,
+    outH,
     {
       clearLowerWhiteGaps: true,
       lowerGapYThreshold: 0.25,

@@ -791,9 +791,60 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
     const stageGroup = new THREE.Group();
     stageGroup.position.set(0, 0, -11);
 
+    // Hand-illustrated wooden plank texture covering the entire stage floor & deck
+    const woodFloorCanvas = document.createElement('canvas');
+    woodFloorCanvas.width = 512;
+    woodFloorCanvas.height = 512;
+    const wCtx = woodFloorCanvas.getContext('2d')!;
+    wCtx.fillStyle = '#3d2b1f';
+    wCtx.fillRect(0, 0, 512, 512);
+    const plankCount = 10;
+    const plankH = 512 / plankCount;
+    for (let p = 0; p < plankCount; p++) {
+      const py = p * plankH;
+      wCtx.fillStyle = p % 2 === 0 ? '#473325' : '#38271c';
+      wCtx.fillRect(0, py, 512, plankH);
+      // Wood grain lines
+      wCtx.strokeStyle = 'rgba(20, 13, 9, 0.55)';
+      wCtx.lineWidth = 2;
+      for (let g = 1; g <= 3; g++) {
+        wCtx.beginPath();
+        wCtx.moveTo(0, py + (plankH * g) / 4);
+        wCtx.bezierCurveTo(
+          160,
+          py + (plankH * g) / 4 + (p % 2 === 0 ? 4 : -4),
+          350,
+          py + (plankH * g) / 4 + (p % 2 === 0 ? -4 : 4),
+          512,
+          py + (plankH * g) / 4
+        );
+        wCtx.stroke();
+      }
+      // Thick Don't Starve ink seam between planks
+      wCtx.strokeStyle = '#0b0806';
+      wCtx.lineWidth = 4;
+      wCtx.beginPath();
+      wCtx.moveTo(0, py);
+      wCtx.lineTo(512, py);
+      wCtx.stroke();
+      // Vertical plank joints & nail dots
+      const jointX = ((p * 173) % 380) + 60;
+      wCtx.beginPath();
+      wCtx.moveTo(jointX, py);
+      wCtx.lineTo(jointX, py + plankH);
+      wCtx.stroke();
+    }
+    const woodPlankFloorTex = new THREE.CanvasTexture(woodFloorCanvas);
+    woodPlankFloorTex.colorSpace = THREE.SRGBColorSpace;
+    woodPlankFloorTex.wrapS = THREE.RepeatWrapping;
+    woodPlankFloorTex.wrapT = THREE.RepeatWrapping;
+    woodPlankFloorTex.repeat.set(4, 2);
+    woodPlankFloorTex.anisotropy = maxAnisotropy;
+
     const darkWoodMat = new THREE.MeshStandardMaterial({
-      color: 0x3b2c22,
-      roughness: 0.88,
+      map: woodPlankFloorTex,
+      color: 0xd6b896,
+      roughness: 0.86,
       metalness: 0.06,
     });
     const brushedSteelMat = new THREE.MeshStandardMaterial({
@@ -809,41 +860,63 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
       metalness: 0.4,
     });
 
-    // Base 3D Stage Platform for depth & shadows (enlarged & noticeably wider)
-    const stageDeck3D = new THREE.Mesh(new THREE.BoxGeometry(24.6, 1.56, 9.8), darkWoodMat);
-    stageDeck3D.position.set(0, 0.78, 0);
+    // Base 3D Stage Platform for depth & shadows (raised higher for imposing concert presence)
+    const STAGE_HEIGHT = 2.28;
+    const stageDeck3D = new THREE.Mesh(
+      new THREE.BoxGeometry(24.6, STAGE_HEIGHT, 9.8),
+      darkWoodMat
+    );
+    stageDeck3D.position.set(0, STAGE_HEIGHT / 2, 0);
     stageDeck3D.castShadow = true;
     stageDeck3D.receiveShadow = true;
     stageGroup.add(stageDeck3D);
 
-    // 2.5D Illustrated Wooden Stage Deck Cutout (from stage_01.png) along the wider front lip
+    // 2.5D Illustrated Wooden Stage Planks (from stage_01.png) laid HORIZONTALLY across the ENTIRE stage floor
+    // (3 plank rows from back to front at y = STAGE_HEIGHT so the wooden planks are the actual floor of the whole stage, not a vertical wall!)
     const fallbackCutoutTex = createDontStarveCutoutTexture('fan_a', maxAnisotropy);
-    const stageDeckCutoutMesh = makeCutoutMesh(fallbackCutoutTex, 26.6, 3.1, 0.25);
-    stageDeckCutoutMesh.position.set(0, -0.06, 4.98);
-    stageGroup.add(stageDeckCutoutMesh);
+    const stageFloorPlankMeshes: THREE.Mesh[] = [];
+    const plankFloorMat = new THREE.MeshStandardMaterial({
+      map: woodPlankFloorTex,
+      transparent: true,
+      alphaTest: 0.15,
+      roughness: 0.84,
+      metalness: 0.05,
+      side: THREE.DoubleSide,
+    });
+    [-3.25, 0, 3.25].forEach((pz, idx) => {
+      const floorStrip = new THREE.Mesh(
+        new THREE.PlaneGeometry(24.6, 3.45),
+        plankFloorMat
+      );
+      floorStrip.rotation.x = -Math.PI / 2;
+      floorStrip.position.set(0, STAGE_HEIGHT + 0.008 + idx * 0.002, pz);
+      floorStrip.receiveShadow = true;
+      stageGroup.add(floorStrip);
+      stageFloorPlankMeshes.push(floorStrip);
+    });
 
-    // 2.5D Illustrated Steel Truss Arch + Hanging Line-Arrays & Spotlights (enlarged & wider)
-    const trussArchFrontMesh = makeCutoutMesh(fallbackCutoutTex, 27.4, 14.8, 0.25);
-    trussArchFrontMesh.position.set(0, 0, -1.85);
+    // 2.5D Illustrated Steel Truss Arch + Hanging Line-Arrays & Spotlights (raised with the taller stage)
+    const trussArchFrontMesh = makeCutoutMesh(fallbackCutoutTex, 27.4, 15.6, 0.25);
+    trussArchFrontMesh.position.set(0, 0.35, -1.85);
     stageGroup.add(trussArchFrontMesh);
 
-    const trussArchBackMesh = makeCutoutMesh(fallbackCutoutTex, 26.2, 14.2, 0.25);
-    trussArchBackMesh.position.set(0, 0, -4.15);
+    const trussArchBackMesh = makeCutoutMesh(fallbackCutoutTex, 26.2, 15.0, 0.25);
+    trussArchBackMesh.position.set(0, 0.35, -4.15);
     stageGroup.add(trussArchBackMesh);
 
-    // 2.5D Illustrated Weathered Cloth Backdrop Banner ("La Renga" Star Telón, larger & wider)
+    // 2.5D Illustrated Weathered Cloth Backdrop Banner ("La Renga" Star Telón, raised with the taller stage)
     const laRengaBackdropMesh = makeCutoutMesh(fallbackCutoutTex, 16.8, 10.4, 0.25);
-    laRengaBackdropMesh.position.set(0, 1.82, -3.75);
+    laRengaBackdropMesh.position.set(0, STAGE_HEIGHT + 0.26, -3.75);
     stageGroup.add(laRengaBackdropMesh);
 
     // 2.5D Illustrated Marshall Amplifier Stacks flanking the wider stage
     const marshallLeftMesh = makeCutoutMesh(fallbackCutoutTex, 5.5, 5.1, 0.25);
-    marshallLeftMesh.position.set(-8.65, 1.56, -0.55);
+    marshallLeftMesh.position.set(-8.65, STAGE_HEIGHT, -0.55);
     marshallLeftMesh.rotation.y = 0.18;
     stageGroup.add(marshallLeftMesh);
 
     const marshallRightMesh = makeCutoutMesh(fallbackCutoutTex, 5.5, 5.1, 0.25);
-    marshallRightMesh.position.set(8.65, 1.56, -0.55);
+    marshallRightMesh.position.set(8.65, STAGE_HEIGHT, -0.55);
     marshallRightMesh.rotation.y = -0.18;
     stageGroup.add(marshallRightMesh);
 
@@ -851,33 +924,33 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
     const wedgeMonitorMeshes: THREE.Mesh[] = [];
     [-7.2, -3.6, 0.0, 3.6, 7.2].forEach((wx) => {
       const wm = makeCutoutMesh(fallbackCutoutTex, 2.75, 1.45, 0.25);
-      wm.position.set(wx, 1.56, 3.85);
+      wm.position.set(wx, STAGE_HEIGHT, 3.85);
       stageGroup.add(wm);
       wedgeMonitorMeshes.push(wm);
     });
 
     // 2.5D Illustrated Microphone Stands (in front of Chizzo & Tete)
     const micStandChizzoMesh = makeCutoutMesh(fallbackCutoutTex, 1.42, 3.25, 0.25);
-    micStandChizzoMesh.position.set(-2.15, 1.56, 2.65);
+    micStandChizzoMesh.position.set(-2.15, STAGE_HEIGHT, 2.65);
     stageGroup.add(micStandChizzoMesh);
 
     const micStandTeteMesh = makeCutoutMesh(fallbackCutoutTex, 1.42, 3.25, 0.25);
-    micStandTeteMesh.position.set(3.85, 1.56, 2.65);
+    micStandTeteMesh.position.set(3.85, STAGE_HEIGHT, 2.65);
     stageGroup.add(micStandTeteMesh);
 
     // 2.5D Illustrated Spare Electric Guitars on Stands (from stage_01.png)
     const guitarsOnStandMesh = makeCutoutMesh(fallbackCutoutTex, 3.25, 3.95, 0.25);
-    guitarsOnStandMesh.position.set(6.65, 1.56, 1.35);
+    guitarsOnStandMesh.position.set(6.65, STAGE_HEIGHT, 1.35);
     guitarsOnStandMesh.rotation.y = -0.22;
     stageGroup.add(guitarsOnStandMesh);
 
     // 2.5D Illustrated Equipment Boxes & Coiled Cables (from stage_01.png)
     const cableBoxesLeftMesh = makeCutoutMesh(fallbackCutoutTex, 2.95, 1.95, 0.25);
-    cableBoxesLeftMesh.position.set(-9.35, 1.56, 2.55);
+    cableBoxesLeftMesh.position.set(-9.35, STAGE_HEIGHT, 2.55);
     stageGroup.add(cableBoxesLeftMesh);
 
     const cableBoxesRightMesh = makeCutoutMesh(fallbackCutoutTex, 2.95, 1.95, 0.25);
-    cableBoxesRightMesh.position.set(9.35, 1.56, 2.55);
+    cableBoxesRightMesh.position.set(9.35, STAGE_HEIGHT, 2.55);
     stageGroup.add(cableBoxesRightMesh);
 
     // 2.5D Illustrated Metal Crowd Control Barriers ("La Valla" spanning the wider stage front)
@@ -918,7 +991,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
 
     [-15.8, 15.8].forEach((sx) => {
       const screenFrameGroup = new THREE.Group();
-      screenFrameGroup.position.set(sx, 6.1, 0.55);
+      screenFrameGroup.position.set(sx, 6.65, 0.55);
       screenFrameGroup.rotation.y = sx < 0 ? 0.24 : -0.24;
 
       const backing = new THREE.Mesh(
@@ -939,10 +1012,10 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
 
       [-2.5, 2.5].forEach((lx) => {
         const leg = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.14, 0.16, 6.1, 8),
+          new THREE.CylinderGeometry(0.14, 0.16, 6.65, 8),
           brushedSteelMat
         );
-        leg.position.set(lx, -3.05, -0.16);
+        leg.position.set(lx, -3.325, -0.16);
         screenFrameGroup.add(leg);
       });
 
@@ -997,7 +1070,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
       new THREE.CylinderGeometry(3.2, 3.5, 0.72, 16),
       darkWoodMat
     );
-    drumRiser.position.set(0, 1.92, -1.35);
+    drumRiser.position.set(0, STAGE_HEIGHT + 0.36, -1.35);
     stageGroup.add(drumRiser);
 
     const chizzoFallbackTex = createDontStarveCutoutTexture('chizzo', maxAnisotropy);
@@ -1006,22 +1079,22 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
 
     // 1. Voz y Guitarra: CHIZZO (Front Center-Left)
     const chizzoMesh = makeCutoutMesh(chizzoFallbackTex, 3.55, 4.35);
-    chizzoMesh.position.set(-2.95, 1.56, 2.05);
+    chizzoMesh.position.set(-2.95, STAGE_HEIGHT, 2.05);
     stageGroup.add(chizzoMesh);
 
     // 2. Bajo: TETE (Front Center-Right)
     const teteMesh = makeCutoutMesh(teteFallbackTex, 3.45, 4.25);
-    teteMesh.position.set(3.05, 1.56, 2.05);
+    teteMesh.position.set(3.05, STAGE_HEIGHT, 2.05);
     stageGroup.add(teteMesh);
 
     // 3. Batería: TANQUE con su propia batería "La Renga" (Center Drum Riser)
     const tanqueMesh = makeCutoutMesh(tanqueFallbackTex, 4.35, 4.85);
-    tanqueMesh.position.set(0, 2.28, -0.92);
+    tanqueMesh.position.set(0, STAGE_HEIGHT + 0.72, -0.92);
     stageGroup.add(tanqueMesh);
 
     // 4. Saxo y Armónica: MANU (Stage Left Flank)
     const manuMesh = makeCutoutMesh(chizzoFallbackTex, 3.0, 4.15);
-    manuMesh.position.set(-6.05, 1.56, 1.15);
+    manuMesh.position.set(-6.05, STAGE_HEIGHT, 1.15);
     stageGroup.add(manuMesh);
 
     let bandSprites: BandCutoutTextures | null = null;
@@ -1074,21 +1147,21 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
         new THREE.CylinderGeometry(0.18, 0.22, 0.28, 8),
         brushedSteelMat
       );
-      nozzle.position.set(fx, 1.64, 3.45);
+      nozzle.position.set(fx, STAGE_HEIGHT + 0.08, 3.45);
       stageFireGroup.add(nozzle);
 
       const outer = new THREE.Mesh(fireGeoOuter, outerFlameMat);
-      outer.position.set(fx, 1.72, 3.45);
+      outer.position.set(fx, STAGE_HEIGHT + 0.16, 3.45);
       stageFireGroup.add(outer);
 
       const inner = new THREE.Mesh(fireGeoInner, innerFlameMat);
-      inner.position.set(fx, 1.72, 3.45);
+      inner.position.set(fx, STAGE_HEIGHT + 0.16, 3.45);
       stageFireGroup.add(inner);
 
       fireColumnMeshes.push({ outer, inner, baseX: fx, phase: idx * 1.15 });
     });
     const stageFireLight = new THREE.PointLight(0xff5500, 0, 26, 1.4);
-    stageFireLight.position.set(0, 3.6, 3.8);
+    stageFireLight.position.set(0, STAGE_HEIGHT + 2.04, 3.8);
     stageFireGroup.add(stageFireLight);
     stageFireGroup.visible = false;
     stageGroup.add(stageFireGroup);
@@ -1109,7 +1182,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
         depthWrite: false,
       });
       const beam = new THREE.Mesh(laserGeo, beamMat);
-      beam.position.set(lx, 11.2, 1.2);
+      beam.position.set(lx, 11.9, 1.2);
       beam.rotation.x = 0.72;
       stadiumLasersGroup.add(beam);
       laserBeamMeshes.push({ mesh: beam, phase: idx * 0.95, baseX: lx });
@@ -1121,11 +1194,11 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
     const guestGroup = new THREE.Group();
     const guestTex = createLegendaryGuestTexture(maxAnisotropy);
     const guestMesh = makeCutoutMesh(guestTex, 3.45, 4.35, 0.22);
-    guestMesh.position.set(6.15, 1.56, 1.35);
+    guestMesh.position.set(6.15, STAGE_HEIGHT, 1.35);
     guestMeshRef.current = guestMesh;
     guestGroup.add(guestMesh);
     const guestSpotLight = new THREE.PointLight(0xfbbf24, 14, 12, 1.3);
-    guestSpotLight.position.set(6.15, 4.6, 2.4);
+    guestSpotLight.position.set(6.15, STAGE_HEIGHT + 3.04, 2.4);
     guestGroup.add(guestSpotLight);
     guestGroup.visible = false;
     stageGroup.add(guestGroup);
@@ -1336,7 +1409,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
           mat.needsUpdate = true;
         };
 
-        applyTex(stageDeckCutoutMesh, stageSprites.stageDeck);
+        stageFloorPlankMeshes.forEach((fm) => applyTex(fm, stageSprites.stageDeck));
         applyTex(trussArchFrontMesh, stageSprites.trussArch);
         applyTex(trussArchBackMesh, stageSprites.trussArch);
         applyTex(laRengaBackdropMesh, stageSprites.laRengaBackdrop);
@@ -1383,10 +1456,11 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
         })
     );
 
-    const standardFanGeo = new THREE.PlaneGeometry(1.55, 2.25);
-    standardFanGeo.translate(0, 2.25 / 2, 0);
-    const shoulderRiderFanGeo = new THREE.PlaneGeometry(1.82, 2.92);
-    shoulderRiderFanGeo.translate(0, 2.92 / 2, 0);
+    // Audience cutouts scaled down by 3% for optimal human proportions relative to the taller stage and valla
+    const standardFanGeo = new THREE.PlaneGeometry(2.57, 3.73);
+    standardFanGeo.translate(0, 3.73 / 2, 0);
+    const shoulderRiderFanGeo = new THREE.PlaneGeometry(2.96, 4.80);
+    shoulderRiderFanGeo.translate(0, 4.80 / 2, 0);
 
     // 15 Materials for all 15 "Banderas de Palo" (9 from sheet 1 + 6 from sheet 2)
     const poleFlagMaterials: THREE.MeshStandardMaterial[] = Array.from({ length: 15 }, (_, idx) => {
@@ -1403,10 +1477,8 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
     // 3 phase-staggered subdivided geometries (18x12) with origin (0,0,0) at the BOTTOM BASE OF THE WOODEN POLE
     // so each flag rotates left-to-right from the base of the stick while the cloth undulates in the wind!
     const poleFlagWaveGeos = [0, 1, 2].map(() => {
-      const geo = new THREE.PlaneGeometry(2.95, 3.65, 18, 12);
-      // Original X spans [-1.475, +1.475], Y spans [-1.825, +1.825].
-      // Shifting by (+1.24, +1.825) places the bottom tip of the left-side wooden pole right at (0, 0, 0)!
-      geo.translate(1.24, 1.825, 0);
+      const geo = new THREE.PlaneGeometry(3.44, 4.27, 18, 12);
+      geo.translate(1.435, 2.135, 0);
       return {
         geo,
         basePos: new Float32Array((geo.attributes.position as THREE.BufferAttribute).array),
@@ -1502,12 +1574,12 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
 
         flagMesh = new THREE.Mesh(sharedWaveGeo, poleFlagMaterials[poleFlagIdx]);
         // Position the base of the wooden pole (0,0,0) right at the fan's hands!
-        flagMesh.position.set(0.28, 0.92, 0.08);
+        flagMesh.position.set(0.427, 1.50, 0.08);
         flagMesh.castShadow = true;
         fanMesh.add(flagMesh);
       }
 
-      const baseScale = 0.88 + (i % 5) * 0.05;
+      const baseScale = 0.93 + (i % 5) * 0.0485;
       fanMesh.scale.set(baseScale, baseScale, baseScale);
       fanMesh.position.set(startX, 0, startZ);
       fanMesh.visible = i < 16;
@@ -1600,19 +1672,19 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
         if (preset === 'general') {
           _camTargetPos.set(
             isPortrait ? 0 : 2.5,
-            isPortrait ? 11.2 : 9.4,
+            isPortrait ? 11.4 : 9.6,
             isPortrait ? 31.5 : 22
           );
-          _camLookAt.set(isPortrait ? 0 : -1.5, 3.2, -6);
+          _camLookAt.set(isPortrait ? 0 : -1.5, 3.6, -6);
         } else if (preset === 'pogo') {
-          _camTargetPos.set(0, 3.8, isPortrait ? 12.0 : 7.8);
-          _camLookAt.set(0, 3.6, -11);
+          _camTargetPos.set(0, 4.1, isPortrait ? 12.0 : 7.8);
+          _camLookAt.set(0, 4.1, -11);
         } else if (preset === 'stage') {
-          _camTargetPos.set(0, 4.4, isPortrait ? 6.5 : -1.2);
-          _camLookAt.set(0, 3.8, -12.0);
+          _camTargetPos.set(0, 5.0, isPortrait ? 6.5 : -1.2);
+          _camLookAt.set(0, 4.4, -12.0);
         } else if (preset === 'entrance') {
-          _camTargetPos.set(-16, 7.2, isPortrait ? 24.5 : 18);
-          _camLookAt.set(-2, 2.8, -6);
+          _camTargetPos.set(-16, 7.4, isPortrait ? 24.5 : 18);
+          _camLookAt.set(-2, 3.2, -6);
         }
 
         camera.position.x = THREE.MathUtils.damp(camera.position.x, _camTargetPos.x, 3.5, delta);
@@ -1793,7 +1865,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
         1.0 + (kickPulse * 0.085 + doublePulse * 0.045) * energyMult + cabinetBuzz;
       const marshallScaleY =
         1.0 + (kickPulse * 0.065 - doublePulse * 0.025) * energyMult - cabinetBuzz * 0.6;
-      const marshallHopY = 1.56 + kickPulse * 0.09 * energyMult;
+      const marshallHopY = STAGE_HEIGHT + kickPulse * 0.09 * energyMult;
       const marshallShakeZ =
         Math.sin(elapsed * beatFreq * 1.5) * 0.028 * energyMult + cabinetBuzz * 0.8;
 
@@ -1813,7 +1885,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
         const wmSx = 1.0 + mKick * 0.095 * energyMult + cabinetBuzz * 0.7;
         const wmSy = 1.0 + mKick * 0.075 * energyMult - cabinetBuzz * 0.5;
         wm.scale.set(wmSx, wmSy, 1);
-        wm.position.y = 1.56 + mKick * 0.055 * energyMult;
+        wm.position.y = STAGE_HEIGHT + mKick * 0.055 * energyMult;
         wm.rotation.z = Math.cos(elapsed * 32.0 + mPhase) * 0.022 * energyMult;
       }
 
@@ -1822,16 +1894,16 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
       trussArchFrontMesh.scale.set(trussPulse, 1.0 + kickPulse * 0.01 * energyMult, 1);
 
       // Band animation & slower, natural pose switching (~9–12s per pose)
-      chizzoMesh.position.y = 1.56 + Math.abs(Math.sin(elapsed * 5.2)) * 0.12;
+      chizzoMesh.position.y = STAGE_HEIGHT + Math.abs(Math.sin(elapsed * 5.2)) * 0.12;
       chizzoMesh.rotation.z = Math.sin(elapsed * 2.4) * 0.04;
 
       teteMesh.position.x = 3.05 + Math.sin(elapsed * 1.25) * 1.35;
-      teteMesh.position.y = 1.56 + Math.abs(Math.cos(elapsed * 6.2)) * 0.18;
+      teteMesh.position.y = STAGE_HEIGHT + Math.abs(Math.cos(elapsed * 6.2)) * 0.18;
       teteMesh.rotation.z = Math.cos(elapsed * 3.0) * 0.05;
 
       tanqueMesh.scale.y = 1.0 + Math.sin(elapsed * 11.0) * 0.03;
 
-      manuMesh.position.y = 1.56 + Math.abs(Math.sin(elapsed * 4.4 + 1.1)) * 0.10;
+      manuMesh.position.y = STAGE_HEIGHT + Math.abs(Math.sin(elapsed * 4.4 + 1.1)) * 0.10;
       manuMesh.rotation.z = Math.sin(elapsed * 2.2) * 0.04;
 
       if (bandSprites) {
@@ -1924,7 +1996,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
 
       guestGroup.visible = hasGuest;
       if (hasGuest) {
-        guestMesh.position.y = 1.56 + Math.abs(Math.sin(elapsed * 5.6 + 0.6)) * 0.15;
+        guestMesh.position.y = STAGE_HEIGHT + Math.abs(Math.sin(elapsed * 5.6 + 0.6)) * 0.15;
         guestMesh.rotation.z = Math.sin(elapsed * 2.8) * 0.06;
       }
 
@@ -1936,7 +2008,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
           const cycle = (elapsed * 1.8 + pyroPhases[p]) % 3.2;
           const norm = cycle / 3.2;
           const px = emX + Math.sin(p * 1.7 + elapsed * 2.0) * (0.4 + norm * 1.6);
-          const py = 8.6 + Math.sin(norm * Math.PI) * 4.2 - norm * 1.8;
+          const py = 9.3 + Math.sin(norm * Math.PI) * 4.2 - norm * 1.8;
           const pz = 0.8 + Math.cos(p * 2.3) * (0.3 + norm * 0.9);
           pAttr.setXYZ(p, px, py, pz);
         }

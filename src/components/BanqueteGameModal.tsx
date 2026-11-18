@@ -26,6 +26,9 @@ import {
   RIVAL_BANQUETES,
   STAGE_UNLOCKABLES,
   RENGA_TROPHIES,
+  GUEST_MUSICIANS_BY_SCORE,
+  evaluateGuestUnlockStatus,
+  GuestMusicianId,
   GameProgressState,
   MilestoneKey,
   StageUnlockableId,
@@ -50,6 +53,7 @@ interface BanqueteGameModalProps {
   gameProgress: GameProgressState;
   communityBanquetes: CommunityBanqueteRecord[];
   onToggleStageUnlockable: (id: StageUnlockableId) => void;
+  onSelectGuestMusician: (guestId: GuestMusicianId) => void;
   onRecordOracleAttempt: (
     challengeId: string,
     hitsCount: number,
@@ -83,6 +87,7 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
   gameProgress,
   communityBanquetes,
   onToggleStageUnlockable,
+  onSelectGuestMusician,
   onRecordOracleAttempt,
   onRecordDuelResult,
   onRegisterLeaderboardBanquete,
@@ -1134,7 +1139,178 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
               </div>
             </div>
 
-            {/* Row 2: Unlockable Decorative 3D Stage Rewards */}
+            {/* Row 2A: CAMARÍN DE INVITADOS (5 Leyendas Desbloqueables · Solo 1 en Escenario) */}
+            <div className="sketch-card rounded p-5 border-2 border-[#f59e0b]/45 bg-[#15100d] space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#f59e0b]">
+                    <Sparkles className="w-3.5 h-3.5 text-[#ef4444]" />
+                    <span>
+                      CAMARÍN DEL BANQUETE · REGLA DE ORO: ¡SOLO 1 INVITADO PUEDE SUBIR AL ESCENARIO!
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-rock text-[#f5efe2] mt-0.5">
+                    Músicos Invitados Desbloqueables ({gameProgress.unlockedGuestIds?.length || 1}/5 Destrabados)
+                  </h3>
+                  <p className="text-xs text-[#a89984]">
+                    Cumplí el requisito de cada leyenda con tu lista de canciones, puntos, Oráculo o Duelos para destrabarla. Elegí cuál de los desbloqueados querés llevar hoy a las tablas junto a Chizzo, Tete, Tanque y Manu.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    onFocusStage3D();
+                    onClose();
+                  }}
+                  className="px-3.5 py-2 text-xs font-semibold bg-[#b91c1c] hover:bg-[#dc2626] text-white rounded border border-[#f59e0b]/50 flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Ver Invitado en el Escenario 3D</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                {GUEST_MUSICIANS_BY_SCORE.map((guest) => {
+                  const evalStatus = evaluateGuestUnlockStatus(
+                    guest.id,
+                    setlist,
+                    playerScore.totalScore,
+                    gameProgress.solvedOracleIds,
+                    gameProgress.defeatedRivalIds
+                  );
+                  const isUnlocked =
+                    evalStatus.unlocked ||
+                    (gameProgress.unlockedGuestIds || ['guest_carpo']).includes(
+                      guest.id
+                    );
+                  const isGuestStageEnabled =
+                    gameProgress.enabledStageIds.includes('guest_musician');
+                  const isCurrentlyOnStage =
+                    isUnlocked &&
+                    isGuestStageEnabled &&
+                    (gameProgress.selectedGuestId || 'guest_carpo') === guest.id;
+
+                  return (
+                    <div
+                      key={guest.id}
+                      className={`rounded p-3.5 border-2 flex flex-col justify-between gap-3 transition-all ${
+                        isCurrentlyOnStage
+                          ? 'bg-[#281812] border-[#f59e0b] shadow-[0_0_24px_rgba(245,158,11,0.22)]'
+                          : isUnlocked
+                          ? 'bg-[#191310] border-[#4a382d] hover:border-[#f59e0b]/60'
+                          : 'bg-[#110d0b] border-[#261d19] opacity-80'
+                      }`}
+                    >
+                      <div>
+                        {/* Top Status Pill */}
+                        <div className="flex items-center justify-between gap-1.5 text-[10px] font-mono font-bold mb-2">
+                          <span
+                            className={`px-2 py-0.5 rounded ${
+                              isCurrentlyOnStage
+                                ? 'bg-[#f59e0b] text-black'
+                                : isUnlocked
+                                ? 'bg-[#14291a] text-[#22c55e] border border-[#22c55e]/40'
+                                : 'bg-[#1c1512] text-[#9c8c79] border border-[#3a2c24]'
+                            }`}
+                          >
+                            {isCurrentlyOnStage
+                              ? '★ EN ESCENARIO'
+                              : isUnlocked
+                              ? '✓ DESBLOQUEADO'
+                              : '🔒 BLOQUEADO'}
+                          </span>
+                          {isUnlocked ? (
+                            <Unlock className="w-3.5 h-3.5 text-[#22c55e] shrink-0" />
+                          ) : (
+                            <Lock className="w-3.5 h-3.5 text-[#8c7c68] shrink-0" />
+                          )}
+                        </div>
+
+                        {/* Illustrated Character Cutout Preview */}
+                        <div className="relative h-44 w-full rounded bg-gradient-to-b from-[#231914] to-[#0d0a09] border border-[#332720] flex items-end justify-center p-2 overflow-hidden">
+                          <img
+                            src={guest.assetUrl}
+                            alt={guest.name}
+                            className={`h-full w-auto object-contain object-bottom transition-all duration-200 ${
+                              isUnlocked
+                                ? 'drop-shadow-[0_8px_16px_rgba(0,0,0,0.9)]'
+                                : 'grayscale contrast-125 brightness-50'
+                            }`}
+                          />
+                          <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 text-[9px] font-mono bg-black/80 text-[#f59e0b] rounded border border-[#4a382d]">
+                            {guest.bandOrigin}
+                          </span>
+                        </div>
+
+                        {/* Guest Name & Role */}
+                        <div className="mt-2.5">
+                          <div className="text-base font-rock tracking-wide text-[#f5efe2] leading-tight">
+                            {guest.nickname}
+                          </div>
+                          <div className="text-[11px] font-semibold text-[#d6c9b8] truncate">
+                            {guest.name}
+                          </div>
+                          <div className="text-[10px] font-mono text-[#f59e0b] mt-0.5 truncate">
+                            {guest.instrument}
+                          </div>
+                        </div>
+
+                        {/* Unlock Requirement Box */}
+                        <div className="mt-2.5 pt-2 border-t border-[#2a201b] space-y-1">
+                          <div className="text-[10px] font-mono uppercase text-[#ef4444]">
+                            Requisito de Desbloqueo:
+                          </div>
+                          <p className="text-[11px] text-[#c5b8a5] leading-snug">
+                            {guest.unlockConditionLabel}
+                          </p>
+                          <p
+                            className={`text-[10px] font-mono font-bold pt-0.5 ${
+                              isUnlocked ? 'text-[#22c55e]' : 'text-[#fbbf24]'
+                            }`}
+                          >
+                            {evalStatus.progressText}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Exclusive Selection Button (Only 1 Guest on Stage at a time) */}
+                      <button
+                        type="button"
+                        disabled={!isUnlocked}
+                        onClick={() => {
+                          if (!isUnlocked) return;
+                          onSelectGuestMusician(guest.id);
+                          rockAudio.playCrowdRoar();
+                        }}
+                        className={`w-full py-2 px-2.5 text-xs font-bold rounded border transition-all flex items-center justify-center gap-1.5 ${
+                          isCurrentlyOnStage
+                            ? 'bg-[#f59e0b] text-black border-[#fbbf24] cursor- pointer'
+                            : isUnlocked
+                            ? 'bg-[#b91c1c] hover:bg-[#dc2626] text-white border-[#f59e0b]/50 cursor-pointer'
+                            : 'bg-[#1a1411] text-[#6e6052] border-[#29201b] cursor-not-allowed'
+                        }`}
+                      >
+                        {isCurrentlyOnStage ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                            <span>En el Escenario 3D</span>
+                          </>
+                        ) : isUnlocked ? (
+                          <span>Llevar al Escenario</span>
+                        ) : (
+                          <>
+                            <Lock className="w-3 h-3" />
+                            <span className="truncate">{guest.unlockShortHint}</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Row 2B: Unlockable Decorative 3D Stage Rewards */}
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -1142,7 +1318,7 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
                     Efectos Escénicos 3D & Rarezas Desbloqueables ({gameProgress.unlockedStageIds.length}/4)
                   </h3>
                   <p className="text-xs text-[#a89984]">
-                    El recital en la playa es 100% decorativo: activá o desactivá tus premios para ver el escenario con fuego vivo, haces de luz de Huracán, chispas doradas o un violero leyenda invitado.
+                    El recital en la playa es 100% decorativo: activá o desactivá tus premios para ver el escenario con fuego vivo, haces de luz de Huracán, chispas doradas o el músico invitado que elegiste arriba.
                   </p>
                 </div>
                 <button
