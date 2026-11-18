@@ -336,18 +336,18 @@ export const VisualSetlistBuilderModal: React.FC<VisualSetlistBuilderModalProps>
 
   return (
     <div
-      className="fixed inset-0 z-30 bg-black/85 flex items-center justify-center p-2 md:p-4 select-none"
+      className="fixed inset-0 z-30 bg-black/85 flex items-center justify-center p-1.5 sm:p-2 md:p-4 select-none"
       role="dialog"
       aria-modal="true"
       aria-label="Armador Visual de Setlist del Banquete"
     >
-      <div className="sketch-panel rounded w-full max-w-[1380px] h-[92vh] min-h-0 flex flex-col overflow-hidden border-2 border-[#4a382d] bg-[#120e0c]">
+      <div className="sketch-panel rounded w-full max-w-[1380px] h-[94dvh] sm:h-[92vh] min-h-0 flex flex-col overflow-hidden border-2 border-[#4a382d] bg-[#120e0c]">
         {/* ====================================================================
             1. TOP HEADER BAR WITH LIVE STATS & QUICK ACTIONS
            ==================================================================== */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 border-b border-[#3a2c24] bg-[#191310] shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded bg-[#b91c1c] border border-[#f59e0b]/50 flex items-center justify-center text-white shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 border-b border-[#3a2c24] bg-[#191310] shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded bg-[#b91c1c] border border-[#f59e0b]/50 flex items-center justify-center text-white shrink-0">
               <Disc className="w-5 h-5" />
             </div>
             <div>
@@ -1028,6 +1028,9 @@ export const VisualSetlistBuilderModal: React.FC<VisualSetlistBuilderModalProps>
                                       onReplaceSong(replacingSlotIndex, song);
                                       setReplacingSlotIndex(null);
                                       setSelectedCatalogSongId(song.id);
+                                      if (window.innerWidth < 768) {
+                                        setMobileTab('setlist');
+                                      }
                                     }
                                   }}
                                   className={`px-2.5 py-1 text-xs font-bold rounded flex items-center gap-1 shadow cursor-pointer ${
@@ -1074,7 +1077,7 @@ export const VisualSetlistBuilderModal: React.FC<VisualSetlistBuilderModalProps>
                                       </span>
                                     </>
                                   ) : isFull ? (
-                                    <span>Arrastrá p/ reemplazar</span>
+                                    <span>36/36 (Tocá lista p/ cambiar)</span>
                                   ) : (
                                     <>
                                       <Plus className="w-3.5 h-3.5" />
@@ -1314,9 +1317,11 @@ export const VisualSetlistBuilderModal: React.FC<VisualSetlistBuilderModalProps>
                         }}
                         onDragEnd={clearDragStates}
                         onClick={() => {
-                          setReplacingSlotIndex(
-                            isSelectedForReplace ? null : idx
-                          );
+                          const nextSlot = isSelectedForReplace ? null : idx;
+                          setReplacingSlotIndex(nextSlot);
+                          if (nextSlot !== null && window.innerWidth < 768) {
+                            setMobileTab('catalog');
+                          }
                         }}
                         style={{
                           borderLeftWidth: '3px',
@@ -1435,18 +1440,18 @@ export const VisualSetlistBuilderModal: React.FC<VisualSetlistBuilderModalProps>
                             onClick={() => onMoveSong(idx, -1)}
                             disabled={idx === 0}
                             title="Subir un lugar"
-                            className="p-1 text-[#8c7c68] hover:text-white disabled:opacity-25 cursor-pointer"
+                            className="p-2 sm:p-1 text-[#8c7c68] hover:text-white disabled:opacity-25 cursor-pointer"
                           >
-                            <ArrowUp className="w-3.5 h-3.5" />
+                            <ArrowUp className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => onMoveSong(idx, 1)}
                             disabled={idx === setlist.length - 1}
                             title="Bajar un lugar"
-                            className="p-1 text-[#8c7c68] hover:text-white disabled:opacity-25 cursor-pointer"
+                            className="p-2 sm:p-1 text-[#8c7c68] hover:text-white disabled:opacity-25 cursor-pointer"
                           >
-                            <ArrowDown className="w-3.5 h-3.5" />
+                            <ArrowDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                           </button>
                           <button
                             type="button"
@@ -1456,9 +1461,9 @@ export const VisualSetlistBuilderModal: React.FC<VisualSetlistBuilderModalProps>
                               onRemoveSong(song.id);
                             }}
                             title="Quitar de la lista"
-                            className="p-1 text-[#8c7c68] hover:text-[#ef4444] cursor-pointer"
+                            className="p-2 sm:p-1 text-[#8c7c68] hover:text-[#ef4444] cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                           </button>
                         </div>
                       </div>

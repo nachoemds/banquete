@@ -562,7 +562,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
     controls.dampingFactor = 0.06;
     controls.maxPolarAngle = Math.PI / 2 - 0.05;
     controls.minDistance = 5;
-    controls.maxDistance = 46;
+    controls.maxDistance = 54;
     controls.target.set(0, 2.5, -5);
 
     controls.addEventListener('start', () => {
@@ -1415,6 +1415,46 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
 
     let flagCarrierCounter = 0;
 
+    // Pre-compute all 560 (ringIndex, slotInRing) spots and sort them so that:
+    // - With 6 songs (~16 active fans), only 5 fans are at the valla (ringIndex = 0), widely spaced apart!
+    // - As the user adds songs from 6 up to 36, the remaining valla slots and pogo rings progressively fill in.
+    const fansPerRing = 32;
+    const crowdSlots: { ringIndex: number; slotInRing: number; priority: number }[] = [];
+    for (let idx = 0; idx < MAX_AGENTS; idx++) {
+      const rIdx = Math.floor(idx / fansPerRing);
+      const sIdx = idx % fansPerRing;
+      // Spread horizontal slots using a prime stride (7) so early arrivals are never clumped side-by-side
+      const spreadSlot = (sIdx * 7) % fansPerRing;
+      let priority = 0;
+
+      if (rIdx === 0) {
+        // Front valla row: only 5 early fans (every 6th slot) arrive for the initial 6-song setlist;
+        // the other 27 valla slots arrive progressively as the setlist grows from 10 to 36 songs.
+        if (sIdx % 6 === 0) {
+          priority = (sIdx / 6) * 2.5; // 5 fans in the first 16
+        } else {
+          priority = 38 + sIdx * 11.5; // Fills in gradually between song 10 and song 36
+        }
+      } else if (rIdx >= 1 && rIdx <= 4) {
+        // Mid-front rings: sparse early presence (~11 fans at 6 songs), filling out later
+        if (sIdx % 8 === 0) {
+          priority = 4 + rIdx * 3.2 + (sIdx / 8) * 3.5;
+        } else {
+          priority = 28 + rIdx * 24 + sIdx * 8.5;
+        }
+      } else {
+        // Deeper beach rings fill out as the Banquete grows toward 36 songs
+        priority = 65 + rIdx * 22 + sIdx * 6.5;
+      }
+
+      crowdSlots.push({
+        ringIndex: rIdx,
+        slotInRing: spreadSlot,
+        priority,
+      });
+    }
+    crowdSlots.sort((a, b) => a.priority - b.priority);
+
     for (let i = 0; i < MAX_AGENTS; i++) {
       // Cycle across all 20 unique hand-illustrated fans from fans01, fans02, fans03, and fans04!
       const fanVariantIndex = i % 20;
@@ -1431,10 +1471,11 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
       const startX = Math.max(-14.5, Math.sin(spawnAngle) * spawnDist);
       const startZ = Math.cos(spawnAngle) * spawnDist - 1;
 
-      const fansPerRing = 32;
-      const ringIndex = Math.floor(i / fansPerRing);
+      const assignedSlot = crowdSlots[i];
+      const ringIndex = assignedSlot.ringIndex;
+      const slotInRing = assignedSlot.slotInRing;
       const angleInRing =
-        ((i % fansPerRing) / fansPerRing) * Math.PI * 1.48 -
+        (slotInRing / fansPerRing) * Math.PI * 1.48 -
         Math.PI * 0.70 +
         (ringIndex % 2) * 0.045;
       const radiusToStage = 2.2 + ringIndex * 0.88 + (Math.random() - 0.5) * 0.65;
@@ -1444,8 +1485,10 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
       );
       const targetZ = -3.8 + Math.cos(angleInRing * 0.5) * radiusToStage + ringIndex * 0.32;
 
-      // Equip ~75 fans across the 560 crowd with all 15 Banderas de Palo (skipping Fan #8 who holds her own trapo and shoulder riders #0 & #16)
+      // Equip fans in the mid/back pogo (never in the first 30 early fans or right on the front valla ring 0) with Banderas de Palo
       const hasFlag =
+        i >= 30 &&
+        ringIndex >= 1 &&
         i % 6 === 0 &&
         fanVariantIndex !== 8 &&
         fanVariantIndex !== 0 &&
@@ -1467,6 +1510,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
       const baseScale = 0.88 + (i % 5) * 0.05;
       fanMesh.scale.set(baseScale, baseScale, baseScale);
       fanMesh.position.set(startX, 0, startZ);
+      fanMesh.visible = i < 16;
       scene.add(fanMesh);
 
       agents.push({
@@ -1476,7 +1520,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
         startZ,
         targetX,
         targetZ,
-        progress: 0,
+        progress: i < 16 ? 1 : 0,
         speed: 0.25 + (i % 5) * 0.06,
         phase: i * 0.73,
         hasFlag,
@@ -1552,17 +1596,22 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
 
       if (!userInteractingRef.current) {
         const preset = cameraPresetRef.current;
+        const isPortrait = camera.aspect < 0.85;
         if (preset === 'general') {
-          _camTargetPos.set(2.5, 9.4, 22);
-          _camLookAt.set(-1.5, 3.2, -6);
+          _camTargetPos.set(
+            isPortrait ? 0 : 2.5,
+            isPortrait ? 11.2 : 9.4,
+            isPortrait ? 31.5 : 22
+          );
+          _camLookAt.set(isPortrait ? 0 : -1.5, 3.2, -6);
         } else if (preset === 'pogo') {
-          _camTargetPos.set(0, 3.5, 7.8);
+          _camTargetPos.set(0, 3.8, isPortrait ? 12.0 : 7.8);
           _camLookAt.set(0, 3.6, -11);
         } else if (preset === 'stage') {
-          _camTargetPos.set(0, 4.4, -1.2);
+          _camTargetPos.set(0, 4.4, isPortrait ? 6.5 : -1.2);
           _camLookAt.set(0, 3.8, -12.0);
         } else if (preset === 'entrance') {
-          _camTargetPos.set(-16, 6.8, 18);
+          _camTargetPos.set(-16, 7.2, isPortrait ? 24.5 : 18);
           _camLookAt.set(-2, 2.8, -6);
         }
 
@@ -1602,10 +1651,19 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
         db.mesh.rotation.z = Math.sin(elapsed * 2.1 + db.phase) * 0.045;
       }
 
-      const activeCrowdCount = Math.min(
-        MAX_AGENTS,
-        180 + Math.round((count / 36) * (MAX_AGENTS - 180))
-      );
+      // Progressive crowd curve:
+      // - 0 songs -> 0 fans
+      // - 6 songs -> 16 fans total (only 5 spaced-out fans at the valla + 11 in the sand)
+      // - 18 songs -> ~130 fans
+      // - 36 songs -> all 560 fans filling the valla and beach pogo
+      const songRatio = THREE.MathUtils.clamp(count / 36, 0, 1);
+      const activeCrowdCount =
+        count <= 0
+          ? 0
+          : Math.min(
+              MAX_AGENTS,
+              Math.max(4, Math.round(4 + Math.pow(songRatio, 2.15) * (MAX_AGENTS - 4)))
+            );
 
       const isAgitando = flareActiveRef.current;
       const jumpSpeed = isAgitando ? 16.5 : isPogoSong ? 11.5 : 6.5;
@@ -1617,6 +1675,8 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
         const targetProg = isSummoned ? 1 : 0;
 
         ag.progress = THREE.MathUtils.damp(ag.progress, targetProg, ag.speed * 4.5, delta);
+        ag.mesh.visible = isSummoned || ag.progress > 0.02;
+        if (!ag.mesh.visible) continue;
 
         const curX = THREE.MathUtils.lerp(ag.startX, ag.targetX, ag.progress);
         const curZ = THREE.MathUtils.lerp(ag.startZ, ag.targetZ, ag.progress);
@@ -1924,7 +1984,7 @@ export const BanqueteStage3D: React.FC<BanqueteStage3DProps> = ({
 
     const handlePointerUp = (e: PointerEvent) => {
       const dist = Math.hypot(e.clientX - pointerDownX, e.clientY - pointerDownY);
-      if (dist > 6) return; // Ignore camera drag gestures
+      if (dist > 14) return; // Ignore camera drag gestures (14px tolerance for mobile touch taps)
       if (checkHitsNecocheaPoster(e.clientX, e.clientY)) {
         const a = document.createElement('a');
         a.href = NECOCHEA_TICKETS_OFFICIAL_URL;

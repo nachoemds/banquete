@@ -119,18 +119,14 @@ export default function App() {
   const [flareActive, setFlareActive] = useState<boolean>(false);
   const [dockCollapsed, setDockCollapsed] = useState<boolean>(false);
   const [activeModal, setActiveModal] = useState<ActiveModal>('none');
-  const [onboardingOpen, setOnboardingOpen] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('banquete_onboarding_seen_v1') !== 'true';
-    } catch {
-      return true;
-    }
-  });
+  const [onboardingOpen, setOnboardingOpen] = useState<boolean>(true);
+  const [showWelcomeGreeting, setShowWelcomeGreeting] = useState<boolean>(true);
 
   const handleCloseOnboarding = () => {
     setOnboardingOpen(false);
+    setShowWelcomeGreeting(false);
     try {
-      localStorage.setItem('banquete_onboarding_seen_v1', 'true');
+      localStorage.setItem('banquete_onboarding_seen_v5', 'true');
     } catch {
       // ignore storage errors
     }
@@ -676,98 +672,155 @@ export default function App() {
   };
 
   return (
-    <div className="relative w-screen h-screen bg-[#0d0a09] text-[#efe8d8] overflow-hidden flex flex-col select-none">
-      {/* TOP BAR CONTRACT: 3 Zones separated by gap-8 */}
-      <header className="relative z-20 flex items-center justify-between gap-8 px-6 py-3.5 bg-[#120e0c] border-b-2 border-[#3a2c24]">
-        {/* Zone 1: Single text element wordmark */}
-        <a
-          href="#top"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveModal('none');
-          }}
-          className="text-2xl font-rock tracking-wider text-[#f59e0b] hover:text-[#ef4444] transition-colors whitespace-nowrap shrink-0"
-        >
-          {SITE_COPY.header.brandTitle}
-        </a>
+    <div className="relative w-screen h-[100dvh] bg-[#0d0a09] text-[#efe8d8] overflow-hidden flex flex-col select-none">
+      {/* TOP BAR CONTRACT: Responsive Desktop & Mobile Header */}
+      <header className="relative z-20 flex flex-col bg-[#120e0c] border-b-2 border-[#3a2c24] shrink-0">
+        <div className="flex items-center justify-between gap-2 sm:gap-6 px-3 sm:px-6 py-2 sm:py-3.5">
+          {/* Zone 1: Single text element wordmark */}
+          <a
+            href="#top"
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveModal('none');
+            }}
+            className="text-lg sm:text-2xl font-rock tracking-wider text-[#f59e0b] hover:text-[#ef4444] transition-colors whitespace-nowrap shrink-0"
+          >
+            {SITE_COPY.header.brandTitle}
+          </a>
 
-        {/* Zone 2: 5 concise single-line text navigation links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#c5b8a5]">
+          {/* Zone 2: Desktop navigation links */}
+          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#c5b8a5]">
+            <button
+              onClick={() => setActiveModal(activeModal === 'builder' ? 'none' : 'builder')}
+              className={`hover:text-[#f5efe2] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                activeModal === 'builder' ? 'text-[#ef4444] underline underline-offset-8' : ''
+              }`}
+            >
+              {SITE_COPY.header.navBuilder} ({setlist.length}/36)
+            </button>
+            <button
+              onClick={() => {
+                setGameInitialTab('oraculo');
+                setActiveModal(activeModal === 'game' && gameInitialTab === 'oraculo' ? 'none' : 'game');
+              }}
+              className={`hover:text-[#f5efe2] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                activeModal === 'game' && gameInitialTab !== 'vitrina'
+                  ? 'text-[#ef4444] underline underline-offset-8'
+                  : 'text-[#f59e0b]'
+              }`}
+            >
+              {SITE_COPY.header.navOracleAndDuels}
+            </button>
+            <button
+              onClick={() => {
+                setGameInitialTab('vitrina');
+                setActiveModal(activeModal === 'game' && gameInitialTab === 'vitrina' ? 'none' : 'game');
+              }}
+              className={`hover:text-[#f5efe2] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                activeModal === 'game' && gameInitialTab === 'vitrina'
+                  ? 'text-[#ef4444] underline underline-offset-8'
+                  : ''
+              }`}
+            >
+              {SITE_COPY.header.navTicketsAndRanking} ({gameProgress.tickets.length})
+            </button>
+            <button
+              onClick={() => setActiveModal(activeModal === 'player' ? 'none' : 'player')}
+              className={`hover:text-[#f5efe2] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                activeModal === 'player' ? 'text-[#ef4444] underline underline-offset-8' : ''
+              }`}
+            >
+              {SITE_COPY.header.navListen}
+            </button>
+          </nav>
+
+          {/* Zone 3: Player Profile + Share Button + Primary Action */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveModal('share')}
+              title="Editar tu Apodo Renguero o compartir tu Banquete"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold bg-[#1c1512] hover:bg-[#2a201b] text-[#f59e0b] border border-[#4a382d] rounded cursor-pointer whitespace-nowrap"
+            >
+              <User className="w-3.5 h-3.5 shrink-0" />
+              <span className="max-w-[78px] sm:max-w-[130px] truncate">{gameProgress.playerAlias}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveModal('share')}
+              className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold bg-[#271b15] hover:bg-[#3a281f] text-[#f5efe2] border border-[#f59e0b]/50 rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <Share2 className="w-3.5 h-3.5 text-[#f59e0b]" />
+              <span className="hidden sm:inline">Compartir / Invitar</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setGameInitialTab('duelo');
+                setActiveModal('game');
+              }}
+              className="px-2.5 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold text-[#f5efe2] bg-[#b91c1c] hover:bg-[#dc2626] rounded border border-[#f59e0b]/40 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <span className="sm:hidden">
+                Duelos ({scoreResult.totalScore.toLocaleString('es-AR')})
+              </span>
+              <span className="hidden sm:inline">
+                {SITE_COPY.header.ctaMainButton} ({scoreResult.totalScore.toLocaleString('es-AR')} pts)
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Quick Navigation Bar (Shown below header on phones/tablets < md) */}
+        <nav className="flex md:hidden items-center justify-between gap-1 px-2 py-1.5 bg-[#0e0b09] border-t border-[#291f1a] overflow-x-auto text-[11px] font-semibold text-[#c5b8a5]">
           <button
             onClick={() => setActiveModal(activeModal === 'builder' ? 'none' : 'builder')}
-            className={`hover:text-[#f5efe2] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-              activeModal === 'builder' ? 'text-[#ef4444] underline underline-offset-8' : ''
+            className={`px-2.5 py-1 rounded whitespace-nowrap shrink-0 cursor-pointer ${
+              activeModal === 'builder'
+                ? 'bg-[#b91c1c] text-white'
+                : 'bg-[#181210] text-[#f5efe2] border border-[#332720]'
             }`}
           >
-            {SITE_COPY.header.navBuilder} ({setlist.length}/36)
+            Armar ({setlist.length}/36)
           </button>
           <button
             onClick={() => {
               setGameInitialTab('oraculo');
               setActiveModal(activeModal === 'game' && gameInitialTab === 'oraculo' ? 'none' : 'game');
             }}
-            className={`hover:text-[#f5efe2] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`px-2.5 py-1 rounded whitespace-nowrap shrink-0 cursor-pointer ${
               activeModal === 'game' && gameInitialTab !== 'vitrina'
-                ? 'text-[#ef4444] underline underline-offset-8'
-                : 'text-[#f59e0b]'
+                ? 'bg-[#b91c1c] text-white'
+                : 'bg-[#181210] text-[#f59e0b] border border-[#332720]'
             }`}
           >
-            {SITE_COPY.header.navOracleAndDuels}
+            Oráculo & Duelos
           </button>
           <button
             onClick={() => {
               setGameInitialTab('vitrina');
               setActiveModal(activeModal === 'game' && gameInitialTab === 'vitrina' ? 'none' : 'game');
             }}
-            className={`hover:text-[#f5efe2] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+            className={`px-2.5 py-1 rounded whitespace-nowrap shrink-0 cursor-pointer ${
               activeModal === 'game' && gameInitialTab === 'vitrina'
-                ? 'text-[#ef4444] underline underline-offset-8'
-                : ''
+                ? 'bg-[#b91c1c] text-white'
+                : 'bg-[#181210] text-[#c5b8a5] border border-[#332720]'
             }`}
           >
-            {SITE_COPY.header.navTicketsAndRanking} ({gameProgress.tickets.length})
+            Entradas ({gameProgress.tickets.length})
           </button>
           <button
             onClick={() => setActiveModal(activeModal === 'player' ? 'none' : 'player')}
-            className={`hover:text-[#f5efe2] transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-              activeModal === 'player' ? 'text-[#ef4444] underline underline-offset-8' : ''
+            className={`px-2.5 py-1 rounded whitespace-nowrap shrink-0 cursor-pointer ${
+              activeModal === 'player'
+                ? 'bg-[#b91c1c] text-white'
+                : 'bg-[#181210] text-[#c5b8a5] border border-[#332720]'
             }`}
           >
-            {SITE_COPY.header.navListen}
+            Escuchar
           </button>
         </nav>
-
-        {/* Zone 3: Player Profile + Share Button + Primary Action */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveModal('share')}
-            title="Editar tu Apodo Renguero o compartir tu Banquete"
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#1c1512] hover:bg-[#2a201b] text-[#f59e0b] border border-[#4a382d] rounded cursor-pointer whitespace-nowrap"
-          >
-            <User className="w-3.5 h-3.5" />
-            <span>{gameProgress.playerAlias}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveModal('share')}
-            className="px-3.5 py-2 text-xs font-semibold bg-[#271b15] hover:bg-[#3a281f] text-[#f5efe2] border border-[#f59e0b]/50 rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
-          >
-            <Share2 className="w-3.5 h-3.5 text-[#f59e0b]" />
-            <span>Compartir / Invitar</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setGameInitialTab('duelo');
-              setActiveModal('game');
-            }}
-            className="px-4 py-2 text-xs font-semibold text-[#f5efe2] bg-[#b91c1c] hover:bg-[#dc2626] rounded border border-[#f59e0b]/40 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            {SITE_COPY.header.ctaMainButton} ({scoreResult.totalScore.toLocaleString('es-AR')} pts)
-          </button>
-        </div>
       </header>
 
       {/* MAIN 3D VIEWPORT */}
@@ -783,7 +836,7 @@ export default function App() {
 
         {/* Incoming Friend Shared Setlist / Challenge Banner (?banquete=...) */}
         {sharedFriendBanquete && (
-          <div className="absolute top-24 left-6 z-20 max-w-md sketch-panel p-3.5 rounded border-2 border-[#f59e0b] space-y-2">
+          <div className="absolute top-[132px] sm:top-24 left-2.5 right-2.5 sm:right-auto sm:left-6 z-20 max-w-md sketch-panel p-3 sm:p-3.5 rounded border-2 border-[#f59e0b] space-y-2">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11px] font-mono font-bold text-[#f59e0b]">
                 🔥 DESAFÍO RECIBIDO DE UN AMIGO
@@ -828,38 +881,41 @@ export default function App() {
           </div>
         )}
 
-        {/* Hand-Illustrated Top-Left Stage & Album Badge (Zero backdrop-filter) */}
-        <div className="absolute top-4 left-6 z-10 max-w-md sketch-panel px-4 py-3 rounded flex items-center gap-3.5">
+        {/* Hand-Illustrated Top-Left Stage & Album Badge (Zero backdrop-filter, compact on mobile) */}
+        <div className="absolute top-2 left-2.5 right-2.5 sm:right-auto sm:top-4 sm:left-6 z-10 max-w-md sketch-panel px-2.5 py-1.5 sm:px-4 sm:py-3 rounded flex items-center gap-2.5 sm:gap-3.5">
           {activeSong && (
             <img
               src={albumCoverMap[activeSong.album] || getAlbumCoverDataUrl(activeSong.album)}
               alt={`Tapa ilustrada de ${activeSong.album}`}
               referrerPolicy="no-referrer"
-              className="w-16 h-16 rounded border border-[#544034] object-cover shrink-0 pointer-events-none"
+              className="w-10 h-10 sm:w-16 sm:h-16 rounded border border-[#544034] object-cover shrink-0 pointer-events-none"
             />
           )}
-          <div className="min-w-0">
-            <div className="text-xs text-[#a89984] flex items-center gap-2 font-mono tabular-nums">
-              <span>{SITE_COPY.stageBadge.locationLabel}</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] sm:text-xs text-[#a89984] flex items-center gap-1.5 sm:gap-2 font-mono tabular-nums">
+              <span className="truncate">{SITE_COPY.stageBadge.locationLabel}</span>
               <span aria-hidden="true">·</span>
-              <span>
+              <span className="shrink-0">
                 {setlist.length}/36 {SITE_COPY.stageBadge.songsCounterUnit}
               </span>
-              <span aria-hidden="true">·</span>
-              <span>{scoreResult.totalDurationFormatted}</span>
+              <span aria-hidden="true" className="hidden xs:inline">·</span>
+              <span className="hidden xs:inline shrink-0">{scoreResult.totalDurationFormatted}</span>
             </div>
-            <p className="mt-0.5 text-base font-rock tracking-wide text-[#f5efe2] truncate">
+            <p className="mt-0.5 text-xs sm:text-base font-rock tracking-wide text-[#f5efe2] truncate">
               {scoreResult.rankTitle}
             </p>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <div className="mt-0.5 sm:mt-1 flex items-center gap-1.5 overflow-x-auto">
               {activeSong && (
-                <p className="text-xs text-[#f59e0b] truncate max-w-[140px]">
+                <p className="hidden sm:block text-xs text-[#f59e0b] truncate max-w-[140px]">
                   {activeSong.title}
                 </p>
               )}
               <button
-                onClick={() => setOnboardingOpen(true)}
-                className="px-2 py-0.5 text-[11px] font-semibold bg-[#241b17] hover:bg-[#332721] text-[#f5efe2] border border-[#544034] rounded cursor-pointer whitespace-nowrap shrink-0 transition-colors"
+                onClick={() => {
+                  setShowWelcomeGreeting(false);
+                  setOnboardingOpen(true);
+                }}
+                className="px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold bg-[#241b17] hover:bg-[#332721] text-[#f5efe2] border border-[#544034] rounded cursor-pointer whitespace-nowrap shrink-0 transition-colors"
               >
                 {SITE_COPY.stageBadge.howToPlayButton}
               </button>
@@ -868,7 +924,7 @@ export default function App() {
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Sacar Entradas Oficiales para La Renga en Necochea (Arte Infernal)"
-                className="px-2 py-0.5 text-[11px] font-bold bg-[#b91c1c] hover:bg-[#dc2626] text-white border border-[#f59e0b]/50 rounded flex items-center gap-1 whitespace-nowrap shrink-0"
+                className="px-2 py-0.5 text-[10px] sm:text-[11px] font-bold bg-[#b91c1c] hover:bg-[#dc2626] text-white border border-[#f59e0b]/50 rounded flex items-center gap-1 whitespace-nowrap shrink-0"
               >
                 <Ticket className="w-3 h-3" />
                 <span>Entradas Necochea ↗</span>
@@ -877,15 +933,15 @@ export default function App() {
           </div>
         </div>
 
-        {/* UNIFIED COLLAPSIBLE BOTTOM CONTROL DOCK */}
+        {/* UNIFIED COLLAPSIBLE BOTTOM CONTROL DOCK (Centered & Scroll-Friendly on Mobile) */}
         <div
           className="fixed z-20 transition-transform duration-200"
           style={{
-            left: '53%',
-            bottom: '18px',
-            width: 'min(920px, 90vw)',
+            left: '50%',
+            bottom: '8px',
+            width: 'min(920px, 96vw)',
             transform: dockCollapsed
-              ? 'translate(-50%, calc(100% - 34px))'
+              ? 'translate(-50%, calc(100% - 30px))'
               : 'translate(-50%, 0)',
           }}
         >
@@ -893,46 +949,46 @@ export default function App() {
           <div className="flex justify-center">
             <button
               onClick={() => setDockCollapsed((prev) => !prev)}
-              className="px-4 py-1 text-xs font-medium bg-[#181210] text-[#d6c9b8] border-2 border-b-0 border-[#4a382d] rounded-t flex items-center gap-1.5 hover:text-white cursor-pointer whitespace-nowrap shrink-0"
+              className="px-3.5 sm:px-4 py-1 text-[11px] sm:text-xs font-medium bg-[#181210] text-[#d6c9b8] border-2 border-b-0 border-[#4a382d] rounded-t flex items-center gap-1.5 hover:text-white cursor-pointer whitespace-nowrap shrink-0"
               title="Atajo de teclado: H"
             >
               {dockCollapsed ? (
                 <>
                   <ChevronUp className="w-3.5 h-3.5" />
-                  <span>Mostrar Controles de la Playa (H)</span>
+                  <span>Mostrar Controles de la Playa</span>
                 </>
               ) : (
                 <>
                   <ChevronDown className="w-3.5 h-3.5" />
-                  <span>Ocultar Controles / Modo Cine (H)</span>
+                  <span>Ocultar Controles / Modo Cine</span>
                 </>
               )}
             </button>
           </div>
 
           {/* Main Dock Body */}
-          <div className="sketch-panel rounded p-3.5 flex flex-col gap-3">
-            {/* Row 1: Progress Bar to 36 Songs + Quick Actions */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1 min-w-[240px]">
-                <div className="text-xs font-mono tabular-nums text-[#f5efe2] shrink-0">
+          <div className="sketch-panel rounded p-2.5 sm:p-3.5 flex flex-col gap-2 sm:gap-3">
+            {/* Row 1: Progress Bar to 36 Songs + Quick Actions (Horizontally scrollable on mobile) */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-3">
+              <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
+                <div className="text-[11px] sm:text-xs font-mono tabular-nums text-[#f5efe2] shrink-0">
                   SETLIST: <strong className="text-[#ef4444]">{setlist.length}</strong> / 36
                 </div>
-                <div className="flex-1 h-2.5 bg-[#241b17] rounded overflow-hidden border border-[#382b24]">
+                <div className="flex-1 h-2 sm:h-2.5 bg-[#241b17] rounded overflow-hidden border border-[#382b24]">
                   <div
                     className="h-full bg-[#dc2626] transition-all duration-200"
                     style={{ width: `${(setlist.length / 36) * 100}%` }}
                   />
                 </div>
-                <div className="text-xs font-mono tabular-nums text-[#f59e0b] shrink-0">
+                <div className="text-[11px] sm:text-xs font-mono tabular-nums text-[#f59e0b] shrink-0">
                   {scoreResult.totalScore.toLocaleString('es-AR')} PTS
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-0.5 md:pb-0 shrink-0">
                 <button
                   onClick={() => setActiveModal('builder')}
-                  className="px-3 py-1.5 text-xs font-semibold sketch-card hover:bg-[#2c211c] text-[#f5efe2] rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+                  className="px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold sketch-card hover:bg-[#2c211c] text-[#f5efe2] rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5 text-[#ef4444]" />
                   <span>Elegir Canciones ({36 - setlist.length} libres)</span>
@@ -943,7 +999,7 @@ export default function App() {
                     setGameInitialTab('oraculo');
                     setActiveModal('game');
                   }}
-                  className="px-3 py-1.5 text-xs font-semibold sketch-card hover:bg-[#2c211c] text-[#f59e0b] rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+                  className="px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold sketch-card hover:bg-[#2c211c] text-[#f59e0b] rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                 >
                   <Swords className="w-3.5 h-3.5 text-[#f59e0b]" />
                   <span>Oráculo & Duelos</span>
@@ -954,7 +1010,7 @@ export default function App() {
                     setGameInitialTab('vitrina');
                     setActiveModal('game');
                   }}
-                  className="px-3 py-1.5 text-xs font-semibold sketch-card hover:bg-[#2c211c] text-[#f5efe2] rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+                  className="px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold sketch-card hover:bg-[#2c211c] text-[#f5efe2] rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                 >
                   <Ticket className="w-3.5 h-3.5 text-[#ef4444]" />
                   <span>Entradas & Efectos 3D ({gameProgress.enabledStageIds.length}/4)</span>
@@ -963,7 +1019,7 @@ export default function App() {
                 {setlist.length < 36 && (
                   <button
                     onClick={handleAutoFill36}
-                    className="px-3 py-1.5 text-xs font-semibold sketch-card hover:bg-[#2c211c] text-[#f5efe2] rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+                    className="px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold sketch-card hover:bg-[#2c211c] text-[#f5efe2] rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                   >
                     <Shuffle className="w-3.5 h-3.5 text-[#d97706]" />
                     <span>Completar 36</span>
@@ -972,7 +1028,7 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveModal('player')}
-                  className="px-3 py-1.5 text-xs font-semibold bg-[#b91c1c] hover:bg-[#dc2626] text-white rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+                  className="px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold bg-[#b91c1c] hover:bg-[#dc2626] text-white rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
                 >
                   <Play className="w-3.5 h-3.5" />
                   <span>Escuchar</span>
@@ -981,20 +1037,20 @@ export default function App() {
             </div>
 
             {/* Row 2: Camera Angles + Decorative 3D Stage Effect Toggles + Agitar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#2e231d]">
-              <div className="flex items-center gap-1 bg-[#0d0a09] p-1 rounded border border-[#2c221d]">
+            <div className="flex items-center justify-between gap-2 sm:gap-3 pt-1.5 sm:pt-2 border-t border-[#2e231d] overflow-x-auto pb-0.5 md:pb-0">
+              <div className="flex items-center gap-1 bg-[#0d0a09] p-1 rounded border border-[#2c221d] shrink-0">
                 {(
                   [
                     { id: 'general', label: 'Playa & Mar' },
-                    { id: 'stage', label: 'Pantallas & Batería' },
+                    { id: 'stage', label: 'Escenario' },
                     { id: 'pogo', label: 'Olla del Pogo' },
-                    { id: 'entrance', label: 'Costa & Olas (Izq.)' },
+                    { id: 'entrance', label: 'Costa & Olas' },
                   ] as { id: CameraPreset; label: string }[]
                 ).map((cam) => (
                   <button
                     key={cam.id}
                     onClick={() => setCameraPreset(cam.id)}
-                    className={`px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                    className={`px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium rounded transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                       cameraPreset === cam.id
                         ? 'bg-[#b91c1c] text-white'
                         : 'text-[#a89984] hover:text-white'
@@ -1006,7 +1062,7 @@ export default function App() {
               </div>
 
               {/* Quick 3D Decorative Reward Toggles */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                 {(
                   [
                     { id: 'stage_fire', label: 'Fuego' },
@@ -1041,21 +1097,21 @@ export default function App() {
                 })}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => {
                     rockAudio.playCrowdRoar();
                     setFlareActive(true);
                     window.setTimeout(() => setFlareActive(false), 3200);
                   }}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded border transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+                  className={`px-3 sm:px-3.5 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded border transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                     flareActive
                       ? 'bg-[#dc2626] text-white border-[#f59e0b]'
                       : 'bg-[#b91c1c] hover:bg-[#dc2626] text-white border-[#ef4444]'
                   }`}
                 >
                   <Flame className="w-3.5 h-3.5" />
-                  <span>{flareActive ? '¡Agitando el Campo!' : '¡Agitar!'}</span>
+                  <span>{flareActive ? '¡Agitando!' : '¡Agitar!'}</span>
                 </button>
               </div>
             </div>
@@ -1386,6 +1442,8 @@ export default function App() {
         {/* MODAL 7: ONBOARDING INTERACTIVO ("GUÍA RÁPIDA DEL BANQUETE") */}
         <BanqueteOnboardingModal
           isOpen={onboardingOpen}
+          showWelcomeGreeting={showWelcomeGreeting}
+          onDismissWelcomeGreeting={() => setShowWelcomeGreeting(false)}
           setlistCount={setlist.length}
           playerAlias={gameProgress.playerAlias}
           banqueteTitle={gameProgress.banqueteTitle}

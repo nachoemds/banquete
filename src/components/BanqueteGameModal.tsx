@@ -369,36 +369,45 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-30 bg-black/85 flex items-center justify-center p-4">
-      <div className="sketch-panel rounded w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-30 bg-black/85 flex items-center justify-center p-2 sm:p-4">
+      <div className="sketch-panel rounded w-full max-w-6xl h-[94dvh] sm:h-[90vh] flex flex-col overflow-hidden">
         {/* Top Modal Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-3.5 border-b border-[#3a2c24] bg-[#191310]">
-          <div>
-            <h2 className="text-2xl font-rock text-[#f5efe2]">
-              Modo Juego · El Oráculo, Duelo de Setlists y Vitrina del Banquete
-            </h2>
-            <p className="text-xs text-[#a89984]">
-              Adiviná qué tocó La Renga en shows históricos reales, competí mano a mano contra listas míticas y desbloqueá fuego, luces e invitados para tu playa 3D.
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 px-3.5 sm:px-6 py-2.5 sm:py-3.5 border-b border-[#3a2c24] bg-[#191310] shrink-0">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h2 className="text-lg sm:text-2xl font-rock text-[#f5efe2]">
+                Modo Juego · El Oráculo, Duelo de Setlists y Vitrina
+              </h2>
+              <p className="text-xs text-[#a89984] hidden sm:block">
+                Adiviná qué tocó La Renga en shows históricos reales, competí mano a mano contra listas míticas y desbloqueá fuego, luces e invitados para tu playa 3D.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="sm:hidden p-1.5 text-[#a89984] hover:text-white rounded cursor-pointer shrink-0"
+              aria-label="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Segmented Mode Tabs */}
-            <div className="flex items-center gap-1 bg-[#0d0a09] p-1 rounded border border-[#3a2c24]">
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto">
+            {/* Segmented Mode Tabs (Horizontally scrollable on narrow mobile screens) */}
+            <div className="flex items-center gap-1 bg-[#0d0a09] p-1 rounded border border-[#3a2c24] overflow-x-auto w-full sm:w-auto">
               <button
                 onClick={() => setActiveTab('oraculo')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
+                className={`px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
                   activeTab === 'oraculo'
                     ? 'bg-[#b91c1c] text-white'
                     : 'text-[#c5b8a5] hover:text-white'
                 }`}
               >
                 <Compass className="w-3.5 h-3.5" />
-                <span>1. Oráculo (Shows Reales)</span>
+                <span>1. Oráculo</span>
               </button>
               <button
                 onClick={() => setActiveTab('duelo')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
+                className={`px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
                   activeTab === 'duelo'
                     ? 'bg-[#b91c1c] text-white'
                     : 'text-[#c5b8a5] hover:text-white'
@@ -409,7 +418,7 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
               </button>
               <button
                 onClick={() => setActiveTab('vitrina')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
+                className={`px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 transition-colors ${
                   activeTab === 'vitrina'
                     ? 'bg-[#b91c1c] text-white'
                     : 'text-[#c5b8a5] hover:text-white'
@@ -417,14 +426,14 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
               >
                 <Ticket className="w-3.5 h-3.5" />
                 <span>
-                  3. Entradas, Efectos 3D & Ranking ({gameProgress.tickets.length})
+                  3. Entradas & Ranking ({gameProgress.tickets.length})
                 </span>
               </button>
             </div>
 
             <button
               onClick={onClose}
-              className="p-1.5 text-[#a89984] hover:text-white rounded cursor-pointer"
+              className="hidden sm:block p-1.5 text-[#a89984] hover:text-white rounded cursor-pointer shrink-0"
               aria-label="Cerrar"
             >
               <X className="w-5 h-5" />
@@ -436,9 +445,9 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
         {/* TAB 1: EL ORÁCULO DE SHOWS REALES (ADIVINANZA HISTÓRICA)               */}
         {/* ===================================================================== */}
         {activeTab === 'oraculo' && (
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-12 overflow-y-auto lg:overflow-hidden">
             {/* Left Sidebar: Historical Show Selector + Clues */}
-            <div className="lg:col-span-4 border-r border-[#2e231e] bg-[#120e0c] p-4 overflow-y-auto flex flex-col gap-4">
+            <div className="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-[#2e231e] bg-[#120e0c] p-3.5 sm:p-4 lg:overflow-y-auto flex flex-col gap-4 shrink-0">
               <div>
                 <div className="text-xs font-mono tabular-nums text-[#f59e0b]">
                   ELEGÍ UNA FECHA HISTÓRICA REAL ({gameProgress.solvedOracleIds.length}/4 RESUELTAS)
@@ -529,7 +538,7 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
             </div>
 
             {/* Right Workspace: 6 Milestones Deduction OR 36-Song Comparison */}
-            <div className="lg:col-span-8 p-5 overflow-y-auto flex flex-col justify-between gap-5 bg-[#0d0a09]">
+            <div className="lg:col-span-8 p-3.5 sm:p-5 lg:overflow-y-auto flex flex-col justify-between gap-5 bg-[#0d0a09]">
               {oracleMode === 'milestones' ? (
                 <>
                   <div>
@@ -754,9 +763,9 @@ export const BanqueteGameModal: React.FC<BanqueteGameModalProps> = ({
         {/* TAB 2: DUELO DE SETLISTS (MANO A MANO CONTRA LEYENDAS)                */}
         {/* ===================================================================== */}
         {activeTab === 'duelo' && (
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-12 overflow-y-auto lg:overflow-hidden">
             {/* Left Column: Choose Rival Banquete (Classic AI Legends + Community Users) */}
-            <div className="lg:col-span-4 border-r border-[#2e231e] bg-[#120e0c] p-4 overflow-y-auto space-y-3">
+            <div className="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-[#2e231e] bg-[#120e0c] p-3.5 sm:p-4 lg:overflow-y-auto space-y-3 shrink-0">
               <div className="text-xs font-mono tabular-nums text-[#f59e0b]">
                 1. RIVALES LEYENDA ({gameProgress.defeatedRivalIds.length}/4 DERROTADOS)
               </div>

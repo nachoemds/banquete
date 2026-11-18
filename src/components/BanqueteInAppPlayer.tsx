@@ -57,7 +57,9 @@ export const BanqueteInAppPlayer: React.FC<BanqueteInAppPlayerProps> = ({
   const [isLoadingStream, setIsLoadingStream] = useState<boolean>(false);
   const [resolvedStream, setResolvedStream] =
     useState<ResolvedTrackStream | null>(null);
-  const [miniCollapsed, setMiniCollapsed] = useState<boolean>(false);
+  const [miniCollapsed, setMiniCollapsed] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -221,23 +223,25 @@ export const BanqueteInAppPlayer: React.FC<BanqueteInAppPlayerProps> = ({
       />
 
       {/* ====================================================================
-          1. FLOATING MINI-PLAYER ON THE 3D BEACH VIEWPORT (Top-Right)
+          1. FLOATING MINI-PLAYER ON THE 3D BEACH VIEWPORT
+          (On mobile: docked neatly below top badge; on desktop: top-right)
          ==================================================================== */}
       {currentSong && (
         <div
-          className="absolute top-4 right-6 z-20 sketch-panel rounded transition-all"
-          style={{ width: miniCollapsed ? '250px' : 'min(365px, 90vw)' }}
+          className={`absolute top-[74px] left-2.5 right-2.5 sm:left-auto sm:top-4 sm:right-6 z-20 sketch-panel rounded transition-all ${
+            miniCollapsed ? 'sm:w-[275px]' : 'sm:w-[365px]'
+          }`}
         >
           {/* Mini-Player Top Bar */}
-          <div className="flex items-center justify-between px-3 py-1.5 bg-[#1b1411] border-b border-[#3a2c24]">
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center justify-between px-2.5 sm:px-3 py-1 sm:py-1.5 bg-[#1b1411] border-b border-[#3a2c24]">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
               <Music
                 className={`w-3.5 h-3.5 shrink-0 ${
                   isPlaying ? 'text-[#ef4444]' : 'text-[#f59e0b]'
                 }`}
               />
-              <span className="text-[11px] font-mono tabular-nums text-[#f59e0b] truncate">
-                {isPlaying ? 'SONANDO EN VIVO' : 'REPRODUCTOR IN-APP'} · #
+              <span className="text-[10px] sm:text-[11px] font-mono tabular-nums text-[#f59e0b] truncate">
+                {isPlaying ? 'SONANDO EN VIVO' : 'REPRODUCTOR'} · #
                 {String(displaySlotNumber).padStart(2, '0')}/{setlist.length}
               </span>
             </div>
@@ -267,43 +271,56 @@ export const BanqueteInAppPlayer: React.FC<BanqueteInAppPlayerProps> = ({
           </div>
 
           {/* Mini-Player Body */}
-          <div className="p-3 space-y-2.5">
-            <div className="flex items-center gap-3">
+          <div className="p-2 sm:p-3 space-y-2.5">
+            <div className="flex items-center gap-2.5 sm:gap-3">
               <img
                 src={albumCoverMap[currentSong.album]}
                 alt={currentSong.album}
                 referrerPolicy="no-referrer"
                 onClick={onOpenModal}
-                className="w-12 h-12 rounded border border-[#544034] object-cover shrink-0 cursor-pointer"
+                className="w-9 h-9 sm:w-12 sm:h-12 rounded border border-[#544034] object-cover shrink-0 cursor-pointer"
               />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-rock tracking-wide text-[#f5efe2] truncate">
+              <div className="min-w-0 flex-1" onClick={onOpenModal}>
+                <p className="text-xs sm:text-sm font-rock tracking-wide text-[#f5efe2] truncate">
                   {currentSong.title}
                 </p>
-                <p className="text-xs text-[#a89984] truncate">
+                <p className="text-[11px] sm:text-xs text-[#a89984] truncate">
                   {currentSong.album} ({currentSong.year})
                 </p>
               </div>
 
-              {/* Play / Pause Primary Button */}
-              <button
-                type="button"
-                onClick={togglePlayPause}
-                title={isPlaying ? 'Pausar' : 'Reproducir en vivo'}
-                className={`w-10 h-10 rounded flex items-center justify-center border transition-colors cursor-pointer shrink-0 ${
-                  isPlaying
-                    ? 'bg-[#f59e0b] text-black border-[#fbbf24]'
-                    : 'bg-[#b91c1c] hover:bg-[#dc2626] text-white border-[#ef4444]'
-                }`}
-              >
-                {isLoadingStream ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : isPlaying ? (
-                  <Pause className="w-4 h-4 fill-current" />
-                ) : (
-                  <Play className="w-4 h-4 fill-current ml-0.5" />
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Play / Pause Primary Button */}
+                <button
+                  type="button"
+                  onClick={togglePlayPause}
+                  title={isPlaying ? 'Pausar' : 'Reproducir en vivo'}
+                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded flex items-center justify-center border transition-colors cursor-pointer shrink-0 ${
+                    isPlaying
+                      ? 'bg-[#f59e0b] text-black border-[#fbbf24]'
+                      : 'bg-[#b91c1c] hover:bg-[#dc2626] text-white border-[#ef4444]'
+                  }`}
+                >
+                  {isLoadingStream ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : isPlaying ? (
+                    <Pause className="w-4 h-4 fill-current" />
+                  ) : (
+                    <Play className="w-4 h-4 fill-current ml-0.5" />
+                  )}
+                </button>
+
+                {miniCollapsed && (
+                  <button
+                    type="button"
+                    onClick={() => handleNextTrack(true)}
+                    title="Siguiente canción"
+                    className="w-9 h-9 rounded flex items-center justify-center text-[#c5b8a5] hover:text-white bg-[#1b1411] hover:bg-[#2a1f1a] border border-[#3a2c24] cursor-pointer shrink-0"
+                  >
+                    <SkipForward className="w-4 h-4" />
+                  </button>
                 )}
-              </button>
+              </div>
             </div>
 
             {!miniCollapsed && (
@@ -408,19 +425,19 @@ export const BanqueteInAppPlayer: React.FC<BanqueteInAppPlayerProps> = ({
          ==================================================================== */}
       {isModalOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/80 flex items-center justify-center p-4 select-none"
+          className="fixed inset-0 z-30 bg-black/80 flex items-center justify-center p-2 sm:p-4 select-none"
           role="dialog"
           aria-modal="true"
           aria-label="Reproductor In-App del Banquete"
         >
-          <div className="sketch-panel rounded w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden">
+          <div className="sketch-panel rounded w-full max-w-5xl max-h-[92dvh] flex flex-col overflow-hidden">
             {/* Modal Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-[#3a2c24] bg-[#191310]">
+            <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-[#3a2c24] bg-[#191310]">
               <div>
-                <h2 className="text-2xl font-rock text-[#f5efe2]">
+                <h2 className="text-lg sm:text-2xl font-rock text-[#f5efe2]">
                   Reproductor del Banquete en Vivo ({setlist.length}/36 Temas)
                 </h2>
-                <p className="text-xs text-[#a89984]">
+                <p className="text-[11px] sm:text-xs text-[#a89984]">
                   Escuchá los previews oficiales de tu lista de corrido: al cerrar esta ventana la música sigue sonando en la playa 3D.
                 </p>
               </div>
@@ -429,7 +446,7 @@ export const BanqueteInAppPlayer: React.FC<BanqueteInAppPlayerProps> = ({
                 <button
                   type="button"
                   onClick={onCloseModal}
-                  className="px-3.5 py-2 text-xs font-semibold bg-[#271d18] hover:bg-[#3a2b24] text-[#f5efe2] border border-[#4a382d] rounded flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-semibold bg-[#271d18] hover:bg-[#3a2b24] text-[#f5efe2] border border-[#4a382d] rounded flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>Seguir en el Escenario 3D</span>
                   <X className="w-4 h-4" />
@@ -438,7 +455,7 @@ export const BanqueteInAppPlayer: React.FC<BanqueteInAppPlayerProps> = ({
             </div>
 
             {/* Modal Main 2-Column Body */}
-            <div className="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-6 min-h-0">
+            <div className="p-3 sm:p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 min-h-0">
               {/* Left Column (7 cols): Active Deck (Audio Oficial iTunes / Apple Music) */}
               <div className="md:col-span-7 flex flex-col gap-4">
                 {currentSong ? (
